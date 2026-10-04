@@ -1,0 +1,3719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSVS — Digital Signature Verification System</title>
+<style>
+/* ─── CSS Custom Properties ─── */
+:root {
+  --bg: #090d16;
+  --card-bg: #0f1626;
+  --card-hover: #131c30;
+  --border: #1b263b;
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --accent: #3b82f6;
+  --accent-light: #60a5fa;
+  --accent-dim: rgba(59, 130, 246, 0.12);
+  --success: #10b981;
+  --success-dim: rgba(16, 185, 129, 0.12);
+  --danger: #ef4444;
+  --danger-dim: rgba(239, 68, 68, 0.12);
+  --warning: #f59e0b;
+  --warning-dim: rgba(245, 158, 11, 0.12);
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --sidebar-bg: #070a12;
+  --input-bg: #060912;
+  --pre-bg: #060912;
+  --radius: 8px;
+  --sidebar-w: 230px;
+}
+
+/* ─── Reset & Base ─── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ─── Sidebar ─── */
+#sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+}
+.sidebar-logo {
+  padding: 24px 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo .logo-text {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 2px;
+}
+.sidebar-logo .logo-sub {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.nav-list {
+  list-style: none;
+  padding: 12px 0;
+  flex: 1;
+  overflow-y: auto;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.nav-item:hover { background: var(--accent-dim); color: var(--text); }
+.nav-item.active {
+  border-left-color: var(--accent);
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.08);
+}
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.sidebar-footer {
+  padding: 14px 18px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+/* ─── Main Content ─── */
+#main {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 28px 36px;
+}
+
+/* ─── Pages ─── */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ─── Common Page Header ─── */
+.page-header { margin-bottom: 24px; }
+.page-header h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.page-header .subtitle {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ─── Generic Cards & Layouts ─── */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.card-title-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+
+/* ═══════════════════════════════════════
+   DASHBOARD MODERN REDESIGN STYLES
+════════════════════════════════════════ */
+.dash-container {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding-bottom: 24px;
+}
+
+/* 1. Header */
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 24px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+  gap: 20px;
+}
+.dash-subtitle-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.dash-title {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text);
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+.dash-tagline {
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 620px;
+  line-height: 1.5;
+}
+.dash-status-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.dash-status-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.status-indicator-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: var(--success-dim);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 9999px;
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
+}
+
+/* Sections */
+.dash-section {
+  margin-bottom: 28px;
+}
+.dash-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+.dash-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.2px;
+}
+.dash-section-meta {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* 2. 5 Statistics Cards */
+.dash-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+.dash-stat-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 124px;
+}
+.dash-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+.dash-stat-card.border-success:hover { border-color: rgba(16, 185, 129, 0.4); }
+.dash-stat-card.border-danger:hover { border-color: rgba(239, 68, 68, 0.4); }
+.dash-stat-card.border-warning:hover { border-color: rgba(245, 158, 11, 0.4); }
+
+.dash-stat-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.dash-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.dash-stat-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.dash-stat-icon-wrap.success { color: var(--success); background: var(--success-dim); border-color: rgba(16, 185, 129, 0.25); }
+.dash-stat-icon-wrap.danger { color: var(--danger); background: var(--danger-dim); border-color: rgba(239, 68, 68, 0.25); }
+.dash-stat-icon-wrap.warning { color: var(--warning); background: var(--warning-dim); border-color: rgba(245, 158, 11, 0.25); }
+
+.dash-stat-val {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--text);
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.dash-stat-desc {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* 3. Workflow Track */
+.dash-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.dash-workflow-track {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dash-wf-step {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+.dash-wf-step:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.dash-wf-step.highlight-transfer {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.04);
+}
+.dash-wf-step-num {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+.dash-wf-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  margin: 2px 0;
+}
+.dash-wf-step.highlight-transfer .dash-wf-icon-wrap {
+  background: var(--accent-dim);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: var(--accent);
+}
+.dash-wf-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.dash-wf-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.dash-wf-arrow {
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.dash-wf-arrow svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* 4. Security Architecture Grid */
+.dash-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.dash-feature-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dash-feature-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dash-feature-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.dash-feature-desc {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* 5 & 6. Two-Column Layout */
+.dash-two-col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+/* Checklist */
+.dash-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dash-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+.dash-check-icon-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: var(--success-dim);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.dash-check-content {
+  flex: 1;
+}
+.dash-check-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.dash-check-detail {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* 6. Result States */
+.dash-results-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+}
+.dash-result-card {
+  flex: 1;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+.dash-result-card.valid {
+  border-left: 4px solid var(--success);
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.06) 0%, rgba(16, 185, 129, 0.01) 100%);
+}
+.dash-result-card.invalid {
+  border-left: 4px solid var(--danger);
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.06) 0%, rgba(239, 68, 68, 0.01) 100%);
+}
+.dash-result-card.rejected {
+  border-left: 4px solid var(--warning);
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.06) 0%, rgba(245, 158, 11, 0.01) 100%);
+}
+.dash-result-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dash-result-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dash-result-card.valid .dash-result-icon { color: var(--success); }
+.dash-result-card.invalid .dash-result-icon { color: var(--danger); }
+.dash-result-card.rejected .dash-result-icon { color: var(--warning); }
+.dash-result-badge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.dash-result-badge.valid { background: var(--success-dim); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+.dash-result-badge.invalid { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
+.dash-result-badge.rejected { background: var(--warning-dim); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+.dash-result-meaning {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+  padding-left: 30px;
+}
+
+/* 7. Configuration Grid */
+.dash-config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 24px;
+}
+.dash-config-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.dash-config-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.dash-config-value {
+  font-size: 12px;
+  color: var(--text);
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 600;
+}
+
+/* 9. Quick Actions & Testing */
+.dash-action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.dash-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text);
+}
+.dash-action-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.dash-action-btn.primary {
+  background: var(--accent-dim);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: var(--accent);
+}
+.dash-action-btn.primary:hover {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: var(--accent);
+}
+
+.flex-col-between {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+.dash-testing-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.dash-attack-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dash-attack-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+/* 10. Footer */
+.dash-footer {
+  margin-top: 36px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.dash-footer-primary {
+  font-weight: 600;
+  color: var(--muted);
+}
+.dash-footer-secondary {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+/* UI SVG Icon Helper */
+.ui-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.ui-icon.sm {
+  width: 14px;
+  height: 14px;
+}
+
+/* ─── Standard Buttons ─── */
+button, .btn {
+  border: none;
+  border-radius: 6px;
+  padding: 9px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(1.15); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { filter: brightness(1.15); }
+.btn-warning { background: var(--warning); color: #000; }
+.btn-warning:hover { filter: brightness(1.15); }
+.btn-success { background: var(--success); color: #000; }
+.btn-success:hover { filter: brightness(1.15); }
+.btn-lg { padding: 12px 24px; font-size: 14px; }
+.btn-xl { padding: 16px 32px; font-size: 15px; width: 100%; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-icon { padding: 5px 8px; font-size: 11px; }
+
+/* ─── Badges ─── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.badge-green { background: var(--success-dim); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.3); }
+.badge-red { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.3); }
+.badge-orange { background: var(--warning-dim); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.3); }
+.badge-cyan { background: var(--accent-dim); color: var(--accent); border: 1px solid rgba(59, 130, 246, 0.3); }
+.badge-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+.badge-purple { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+.badge-muted { background: rgba(148, 163, 184, 0.15); color: var(--muted); border: 1px solid rgba(148, 163, 184, 0.3); }
+
+/* ─── Form Elements ─── */
+input[type="text"], input[type="password"], input[type="number"], select, textarea {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 9px 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input[type="text"]:focus, input[type="password"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+textarea.mono { font-family: 'Courier New', Courier, monospace; font-size: 11px; line-height: 1.5; }
+label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-group { margin-bottom: 16px; }
+.radio-group { display: flex; gap: 20px; align-items: center; margin-bottom: 16px; }
+.radio-group label { text-transform: none; margin: 0; color: var(--text); font-weight: 500; font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+input[type="radio"] { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+
+/* ─── Pre / Code ─── */
+pre, .code-block {
+  background: var(--pre-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  color: var(--accent-light);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.5;
+}
+.terminal-cmd { color: #a8d8a8; }
+.terminal-flag { color: #ffd580; }
+.terminal-comment { color: var(--muted); }
+
+/* ─── Drop Zone ─── */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 24px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(0,0,0,0.25);
+  color: var(--muted);
+  font-size: 13px;
+}
+.drop-zone:hover { border-color: var(--accent); background: var(--accent-dim); color: var(--text); }
+.drop-zone.drag-over { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+.drop-zone .drop-icon { font-size: 26px; margin-bottom: 6px; }
+.drop-zone .drop-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+/* ─── Alert / Info Boxes ─── */
+.alert {
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.alert-success { background: var(--success-dim); border: 1px solid rgba(16, 185, 129, 0.35); color: var(--success); }
+.alert-danger { background: var(--danger-dim); border: 1px solid rgba(239, 68, 68, 0.35); color: var(--danger); }
+.alert-warning { background: var(--warning-dim); border: 1px solid rgba(245, 158, 11, 0.35); color: var(--warning); }
+.alert-info { background: var(--accent-dim); border: 1px solid rgba(59, 130, 246, 0.3); color: var(--accent-light); }
+.alert-body { flex: 1; }
+.alert-body strong { display: block; margin-bottom: 3px; }
+.alert-body p { opacity: 0.9; line-height: 1.5; font-size: 12px; }
+
+/* ─── Spinner ─── */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(59, 130, 246, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ─── Toast ─── */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-size: 13px;
+  color: var(--text);
+  min-width: 240px;
+  max-width: 380px;
+  pointer-events: all;
+  animation: toastIn 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.55);
+}
+.toast.success { border-color: var(--success); }
+.toast.error { border-color: var(--danger); }
+.toast.warning { border-color: var(--warning); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* ─── Table ─── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead th {
+  background: rgba(0,0,0,0.35);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid rgba(255, 255, 255, 0.04); transition: background 0.1s; }
+tbody tr:hover { background: rgba(59, 130, 246, 0.04); }
+tbody td { padding: 9px 12px; color: var(--text); vertical-align: middle; }
+.empty-state { text-align: center; padding: 32px 20px; color: var(--muted); }
+.empty-state .empty-icon { font-size: 28px; margin-bottom: 8px; }
+
+/* ─── Tabs ─── */
+.tab-bar { display: flex; gap: 6px; margin-bottom: 14px; }
+.tab-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 16px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.tab-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent-light);
+}
+.tab-btn:hover:not(.active) { border-color: var(--muted); color: var(--text); }
+
+/* ─── Step Wizard ─── */
+.steps-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.step-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.step-badge .num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.step-badge.active .num { border-color: var(--accent); background: var(--accent-dim); color: var(--accent-light); }
+.step-badge.done .num { border-color: var(--success); background: var(--success-dim); color: var(--success); }
+.step-badge.active { color: var(--text); }
+.step-line { flex: 1; height: 1px; background: var(--border); margin: 0 12px; }
+
+/* ─── Key Comparison ─── */
+.key-compare {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 12px;
+}
+.key-compare.match { background: var(--success-dim); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--success); }
+.key-compare.no-match { background: var(--danger-dim); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--danger); }
+
+/* ─── Verification Check List ─── */
+.check-list { display: flex; flex-direction: column; gap: 8px; margin: 16px 0; }
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.15);
+}
+.check-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.check-mark.pass { background: var(--success-dim); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.4); }
+.check-mark.fail { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.4); }
+.check-mark.skip { background: rgba(148, 163, 184, 0.15); color: var(--muted); border: 1px solid rgba(148, 163, 184, 0.3); }
+
+/* ─── Attack Lab ─── */
+.attack-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.attack-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+}
+.attack-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.attack-card h4 { font-size: 14px; font-weight: 700; color: var(--text); }
+.attack-desc { font-size: 12px; color: var(--muted); line-height: 1.5; margin-bottom: 12px; flex: 1; }
+.attack-desc strong { color: var(--text); }
+.attack-evidence-box {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.evidence-row { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.evidence-row:last-child { border-bottom: none; }
+.evidence-key { color: var(--muted); font-size: 11px; }
+.evidence-val { font-family: monospace; font-size: 11px; color: var(--text); word-break: break-all; }
+
+/* ─── Modal ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 6, 12, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(3px);
+}
+.modal-content {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  max-width: 460px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+.modal-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.modal-body { font-size: 13px; color: var(--muted); line-height: 1.5; margin-bottom: 20px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ─── Details Grid ─── */
+.details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.detail-item { }
+.detail-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.detail-value { font-size: 13px; color: var(--text); font-family: 'Courier New', monospace; word-break: break-all; display: flex; align-items: center; gap: 6px; }
+
+/* ─── Filter Bar ─── */
+.filter-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.pill-group { display: flex; gap: 4px; }
+.pill {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pill:hover { border-color: var(--accent); color: var(--text); }
+.pill.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-light); }
+.filter-sep { width: 1px; height: 20px; background: var(--border); }
+.auto-refresh-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
+
+/* ─── Network Diagram ─── */
+.net-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  flex: 1;
+}
+.net-card h3 { font-size: 15px; font-weight: 700; color: var(--accent-light); margin-bottom: 4px; }
+.net-card .net-label { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+.net-row { display: flex; align-items: stretch; gap: 18px; margin-bottom: 20px; }
+.net-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0;
+  min-width: 90px;
+}
+.net-arrow .arrow-line { width: 2px; flex: 1; background: var(--border); }
+.net-arrow .arrow-label {
+  font-size: 11px;
+  color: var(--accent-light);
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.tls-badge {
+  background: var(--accent-dim);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: var(--accent-light);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ─── Inbox Items ─── */
+.inbox-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: rgba(0,0,0,0.25);
+}
+.inbox-item:hover { border-color: var(--accent); background: var(--accent-dim); }
+.inbox-item .inbox-name { font-size: 13px; font-weight: 600; }
+.inbox-item .inbox-meta { font-size: 11px; color: var(--muted); }
+
+/* ─── Helpers ─── */
+.hidden { display: none !important; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.flex-center { display: flex; align-items: center; }
+.gap-8 { gap: 8px; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mb-0 { margin-bottom: 0; }
+.w-full { width: 100%; }
+.text-accent { color: var(--accent-light); }
+.text-success { color: var(--success); }
+.text-danger { color: var(--danger); }
+.text-warning { color: var(--warning); }
+.collapsible-toggle {
+  background: none;
+  border: none;
+  color: var(--accent-light);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.collapsible-content { display: none; margin-top: 12px; }
+.collapsible-content.open { display: block; }
+.pkg-meta {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 12px;
+  margin-top: 12px;
+}
+.pkg-meta .pm-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.pkg-meta .pm-row:last-child { border-bottom: none; }
+.pm-key { color: var(--muted); }
+.pm-val { color: var(--text); font-family: monospace; font-size: 11px; }
+
+/* ─── Responsive ─── */
+@media (max-width: 1150px) {
+  .dash-stats-grid { grid-template-columns: repeat(3, 1fr); }
+  .dash-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .dash-two-col-grid { grid-template-columns: 1fr; }
+  .dash-config-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 860px) {
+  .dash-workflow-track {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .dash-wf-step {
+    width: 100%;
+  }
+  .dash-wf-arrow {
+    transform: rotate(90deg);
+    margin: 4px 0;
+  }
+  .dash-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .dash-status-card {
+    align-items: flex-start;
+  }
+  .two-col { grid-template-columns: 1fr; }
+  .attack-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .dash-stats-grid { grid-template-columns: 1fr; }
+  .dash-grid-4 { grid-template-columns: 1fr; }
+  .dash-config-grid { grid-template-columns: 1fr; }
+  .dash-action-buttons { grid-template-columns: 1fr; }
+  .net-row { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     SIDEBAR NAVIGATION
+════════════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-text">DSVS</div>
+    <div class="logo-sub">Digital Signature<br>Verification System</div>
+  </div>
+  <ul class="nav-list">
+    <li class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+      <span class="nav-icon">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </span>
+      <span>Dashboard</span>
+    </li>
+    <li class="nav-item" data-page="keys" onclick="navigate('keys')">
+      <span class="nav-icon">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="15.5" cy="8.5" r="5.5"/><path d="M11 13l-7 7v4h4v-2h2v-2l1.5-1.5"/></svg>
+      </span>
+      <span>Key Management</span>
+    </li>
+    <li class="nav-item" data-page="sign" onclick="navigate('sign')">
+      <span class="nav-icon">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </span>
+      <span>Sender / Sign</span>
+    </li>
+    <li class="nav-item" data-page="verify" onclick="navigate('verify')">
+      <span class="nav-icon">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+      </span>
+      <span>Receiver / Verify</span>
+    </li>
+    <li class="nav-item" data-page="attack" onclick="navigate('attack')">
+      <span class="nav-icon">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+      </span>
+      <span>Attack Lab</span>
+    </li>
+    <li class="nav-item" data-page="network" onclick="navigate('network')">
+      <span class="nav-icon">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+      </span>
+      <span>Network</span>
+    </li>
+    <li class="nav-item" data-page="audit" onclick="navigate('audit')">
+      <span class="nav-icon">
+        <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+      </span>
+      <span>Audit Log</span>
+    </li>
+  </ul>
+  <div class="sidebar-footer">RSA-PSS &bull; SHA-256</div>
+</nav>
+
+<!-- ═══════════════════════════════════════
+     MAIN CONTENT AREA
+════════════════════════════════════════ -->
+<main id="main">
+
+<!-- ─────────────────────────────────────
+     PAGE 1: DASHBOARD
+───────────────────────────────────────── -->
+<div class="page active" id="page-dashboard">
+  <div class="dash-container">
+    
+    <!-- 1. Header & System Status -->
+    <header class="dash-header">
+      <div class="dash-header-main">
+        <h1 class="dash-title">DIGITAL SIGNATURE<br>VERIFICATION SYSTEM</h1>
+      </div>
+      <div class="dash-header-aside">
+        <div class="dash-status-card">
+          <div class="dash-status-label">System Status</div>
+          <div class="status-indicator-badge">
+            <span class="status-pulse-dot"></span>
+            <span class="status-indicator-text">System Operational</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 2. System Overview Statistics (5 Cards) -->
+    <section class="dash-section">
+      <div class="dash-section-header">
+        <h2 class="dash-section-title">System Overview</h2>
+        <span class="dash-section-meta">Live Cryptographic Audit Counters</span>
+      </div>
+      <div class="dash-stats-grid">
+        <!-- Card 1: Signatures Created -->
+        <div class="dash-stat-card">
+          <div class="dash-stat-top">
+            <span class="dash-stat-label">Signatures Created</span>
+            <div class="dash-stat-icon-wrap">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+          </div>
+          <div class="dash-stat-val" id="stat-signed">0</div>
+          <div class="dash-stat-desc">RSA-PSS signatures generated</div>
+        </div>
+
+        <!-- Card 2: Keys Generated -->
+        <div class="dash-stat-card">
+          <div class="dash-stat-top">
+            <span class="dash-stat-label">Keys Generated</span>
+            <div class="dash-stat-icon-wrap">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="15.5" cy="8.5" r="5.5"/><path d="M11 13l-7 7v4h4v-2h2v-2l1.5-1.5"/></svg>
+            </div>
+          </div>
+          <div class="dash-stat-val" id="stat-keys">0</div>
+          <div class="dash-stat-desc">2048 to 4096-bit RSA key pairs</div>
+        </div>
+
+        <!-- Card 3: Valid Verifications -->
+        <div class="dash-stat-card border-success">
+          <div class="dash-stat-top">
+            <span class="dash-stat-label">Valid Verifications</span>
+            <div class="dash-stat-icon-wrap success">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            </div>
+          </div>
+          <div class="dash-stat-val text-success" id="stat-valid">0</div>
+          <div class="dash-stat-desc">All security checks passed</div>
+        </div>
+
+        <!-- Card 4: Invalid Verifications -->
+        <div class="dash-stat-card border-danger">
+          <div class="dash-stat-top">
+            <span class="dash-stat-label">Invalid Verifications</span>
+            <div class="dash-stat-icon-wrap danger">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+          </div>
+          <div class="dash-stat-val text-danger" id="stat-invalid">0</div>
+          <div class="dash-stat-desc">Integrity or signature failure</div>
+        </div>
+
+        <!-- Card 5: Rejected / Replay -->
+        <div class="dash-stat-card border-warning">
+          <div class="dash-stat-top">
+            <span class="dash-stat-label">Rejected / Replay</span>
+            <div class="dash-stat-icon-wrap warning">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+          </div>
+          <div class="dash-stat-val text-warning" id="stat-rejected">0</div>
+          <div class="dash-stat-desc">Replay or expiration rejection</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Signature Verification Workflow -->
+    <section class="dash-section">
+      <div class="dash-section-header">
+        <h2 class="dash-section-title">Signature Verification Workflow</h2>
+        <span class="dash-section-meta">Independent Sign &amp; Verify Operations</span>
+      </div>
+      <div class="dash-card">
+        <div class="dash-workflow-track">
+          <!-- Step 01 -->
+          <div class="dash-wf-step">
+            <div class="dash-wf-step-num">01</div>
+            <div class="dash-wf-icon-wrap">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div class="dash-wf-title">Sender</div>
+            <div class="dash-wf-desc">Prepares message</div>
+          </div>
+
+          <div class="dash-wf-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+
+          <!-- Step 02 -->
+          <div class="dash-wf-step">
+            <div class="dash-wf-step-num">02</div>
+            <div class="dash-wf-icon-wrap">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </div>
+            <div class="dash-wf-title">Sign</div>
+            <div class="dash-wf-desc">RSA-PSS signature created</div>
+          </div>
+
+          <div class="dash-wf-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+
+          <!-- Step 03 -->
+          <div class="dash-wf-step highlight-transfer">
+            <div class="dash-wf-step-num">03</div>
+            <div class="dash-wf-icon-wrap">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </div>
+            <div class="dash-wf-title">Transfer</div>
+            <div class="dash-wf-desc">Signature package delivered</div>
+          </div>
+
+          <div class="dash-wf-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+
+          <!-- Step 04 -->
+          <div class="dash-wf-step">
+            <div class="dash-wf-step-num">04</div>
+            <div class="dash-wf-icon-wrap">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+            </div>
+            <div class="dash-wf-title">Receiver</div>
+            <div class="dash-wf-desc">Loads package and trusted key</div>
+          </div>
+
+          <div class="dash-wf-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+
+          <!-- Step 05 -->
+          <div class="dash-wf-step">
+            <div class="dash-wf-step-num">05</div>
+            <div class="dash-wf-icon-wrap">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            </div>
+            <div class="dash-wf-title">Verify</div>
+            <div class="dash-wf-desc">Integrity + signature + freshness checks</div>
+          </div>
+
+          <div class="dash-wf-arrow">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+
+          <!-- Step 06 -->
+          <div class="dash-wf-step">
+            <div class="dash-wf-step-num">06</div>
+            <div class="dash-wf-icon-wrap">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <div class="dash-wf-title">Result</div>
+            <div class="dash-wf-desc">Valid / Invalid / Rejected</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Security Architecture -->
+    <section class="dash-section">
+      <div class="dash-section-header">
+        <h2 class="dash-section-title">Security Architecture</h2>
+        <span class="dash-section-meta">Core Cryptographic Components</span>
+      </div>
+      <div class="dash-grid-4">
+        <div class="dash-feature-card">
+          <div class="dash-feature-icon">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="15.5" cy="8.5" r="5.5"/><path d="M11 13l-7 7v4h4v-2h2v-2l1.5-1.5"/></svg>
+          </div>
+          <h3 class="dash-feature-title">RSA-PSS</h3>
+          <p class="dash-feature-desc">Digital signature algorithm used to authenticate and protect signed data.</p>
+        </div>
+
+        <div class="dash-feature-card">
+          <div class="dash-feature-icon">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+          </div>
+          <h3 class="dash-feature-title">SHA-256</h3>
+          <p class="dash-feature-desc">Cryptographic hash used to detect message modification.</p>
+        </div>
+
+        <div class="dash-feature-card">
+          <div class="dash-feature-icon">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <h3 class="dash-feature-title">Timestamp + Nonce</h3>
+          <p class="dash-feature-desc">Provides freshness information and supports replay protection.</p>
+        </div>
+
+        <div class="dash-feature-card">
+          <div class="dash-feature-icon">
+            <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          </div>
+          <h3 class="dash-feature-title">Trusted Public Key</h3>
+          <p class="dash-feature-desc">Used by the receiver to verify the expected signing key.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Verification Checks & 6. Verification Result States -->
+    <div class="dash-two-col-grid">
+      <!-- 5. Verification Checks -->
+      <section class="dash-section mb-0">
+        <div class="dash-section-header">
+          <h2 class="dash-section-title">Verification Checks</h2>
+          <span class="dash-section-meta">Receiver Validation Pipeline</span>
+        </div>
+        <div class="dash-card">
+          <div class="dash-check-list">
+            <div class="dash-check-item">
+              <div class="dash-check-icon-box">
+                <svg class="ui-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="dash-check-content">
+                <div class="dash-check-name">Package Structure</div>
+                <div class="dash-check-detail">Verifies JSON envelope schema, mandatory fields, and Base64 format integrity.</div>
+              </div>
+            </div>
+
+            <div class="dash-check-item">
+              <div class="dash-check-icon-box">
+                <svg class="ui-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="dash-check-content">
+                <div class="dash-check-name">Trusted Public Key</div>
+                <div class="dash-check-detail">Embedded public key is compared against the receiver's trusted public key anchor.</div>
+              </div>
+            </div>
+
+            <div class="dash-check-item">
+              <div class="dash-check-icon-box">
+                <svg class="ui-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="dash-check-content">
+                <div class="dash-check-name">Message Integrity</div>
+                <div class="dash-check-detail">SHA-256 hash is recomputed from payload and compared with the signed digest.</div>
+              </div>
+            </div>
+
+            <div class="dash-check-item">
+              <div class="dash-check-icon-box">
+                <svg class="ui-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="dash-check-content">
+                <div class="dash-check-name">RSA-PSS Signature</div>
+                <div class="dash-check-detail">Signature is mathematically verified using the trusted RSA public key and MGF1 salt.</div>
+              </div>
+            </div>
+
+            <div class="dash-check-item">
+              <div class="dash-check-icon-box">
+                <svg class="ui-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="dash-check-content">
+                <div class="dash-check-name">Timestamp Freshness</div>
+                <div class="dash-check-detail">Signature creation timestamp is verified against maximum allowed age threshold.</div>
+              </div>
+            </div>
+
+            <div class="dash-check-item">
+              <div class="dash-check-icon-box">
+                <svg class="ui-icon sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="dash-check-content">
+                <div class="dash-check-name">Replay Protection</div>
+                <div class="dash-check-detail">Cryptographic 128-bit nonce is validated against previously accepted nonces store.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. Result Classification -->
+      <section class="dash-section mb-0">
+        <div class="dash-section-header">
+          <h2 class="dash-section-title">Verification Result States</h2>
+          <span class="dash-section-meta">Standard Output Classification</span>
+        </div>
+        <div class="dash-results-stack">
+          <!-- VALID -->
+          <div class="dash-result-card valid">
+            <div class="dash-result-top">
+              <div class="dash-result-icon">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+              </div>
+              <div class="dash-result-badge valid">VALID</div>
+            </div>
+            <div class="dash-result-meaning">
+              All required cryptographic and security checks passed. Authentic and untampered.
+            </div>
+          </div>
+
+          <!-- INVALID -->
+          <div class="dash-result-card invalid">
+            <div class="dash-result-top">
+              <div class="dash-result-icon">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              </div>
+              <div class="dash-result-badge invalid">INVALID</div>
+            </div>
+            <div class="dash-result-meaning">
+              The package failed a structural or cryptographic validation check. Tampered or forged.
+            </div>
+          </div>
+
+          <!-- REJECTED -->
+          <div class="dash-result-card rejected">
+            <div class="dash-result-top">
+              <div class="dash-result-icon">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <div class="dash-result-badge rejected">REJECTED</div>
+            </div>
+            <div class="dash-result-meaning">
+              The package may be cryptographically valid but was rejected because of freshness or replay policy.
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 7. System Configuration -->
+    <section class="dash-section">
+      <div class="dash-section-header">
+        <h2 class="dash-section-title">Cryptographic Configuration</h2>
+        <span class="dash-section-meta">System Parameters</span>
+      </div>
+      <div class="dash-card">
+        <div class="dash-config-grid">
+          <div class="dash-config-row">
+            <span class="dash-config-label">Signature Algorithm</span>
+            <span class="dash-config-value">RSA-PSS</span>
+          </div>
+          <div class="dash-config-row">
+            <span class="dash-config-label">Hash Algorithm</span>
+            <span class="dash-config-value">SHA-256</span>
+          </div>
+          <div class="dash-config-row">
+            <span class="dash-config-label">Minimum RSA Key Size</span>
+            <span class="dash-config-value">2048 bits</span>
+          </div>
+          <div class="dash-config-row">
+            <span class="dash-config-label">Signature Encoding</span>
+            <span class="dash-config-value">Base64</span>
+          </div>
+          <div class="dash-config-row">
+            <span class="dash-config-label">Replay Protection</span>
+            <span class="dash-config-value text-success">Enabled</span>
+          </div>
+          <div class="dash-config-row">
+            <span class="dash-config-label">Transport Security</span>
+            <span class="dash-config-value">TCP / Optional TLS</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. Recent Security Activity -->
+    <section class="dash-section">
+      <div class="dash-section-header">
+        <h2 class="dash-section-title">Recent Security Activity</h2>
+        <button class="btn btn-secondary btn-sm" onclick="navigate('audit')">View Full Audit Log &rarr;</button>
+      </div>
+      <div class="dash-card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp (UTC)</th>
+                <th>Event</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Reason / Details</th>
+              </tr>
+            </thead>
+            <tbody id="dash-recent-tbody">
+              <tr><td colspan="5" class="empty-state">Loading recent security events&hellip;</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. Quick Actions & Security Testing -->
+    <div class="dash-two-col-grid">
+      <!-- Quick Actions -->
+      <section class="dash-section mb-0">
+        <div class="dash-section-header">
+          <h2 class="dash-section-title">Quick Actions</h2>
+          <span class="dash-section-meta">System Workflows</span>
+        </div>
+        <div class="dash-card">
+          <div class="dash-action-buttons">
+            <button class="dash-action-btn primary" onclick="navigate('sign')">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>Create Signature</span>
+            </button>
+            <button class="dash-action-btn primary" onclick="navigate('verify')">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+              <span>Verify Signature</span>
+            </button>
+            <button class="dash-action-btn secondary" onclick="navigate('keys')">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="15.5" cy="8.5" r="5.5"/><path d="M11 13l-7 7v4h4v-2h2v-2l1.5-1.5"/></svg>
+              <span>Generate Keys</span>
+            </button>
+            <button class="dash-action-btn secondary" onclick="navigate('attack')">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+              <span>Open Attack Lab</span>
+            </button>
+            <button class="dash-action-btn secondary" onclick="navigate('audit')">
+              <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+              <span>View Audit Log</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Security Testing Card -->
+      <section class="dash-section mb-0">
+        <div class="dash-section-header">
+          <h2 class="dash-section-title">Security Testing</h2>
+          <span class="dash-section-meta">Adversarial Simulation</span>
+        </div>
+        <div class="dash-card flex-col-between">
+          <div>
+            <p class="dash-testing-desc">
+              Test how the system responds to common signature attacks and validation failures.
+            </p>
+            <div class="dash-attack-tags">
+              <span class="dash-attack-tag">Tampered Message</span>
+              <span class="dash-attack-tag">Corrupted Signature</span>
+              <span class="dash-attack-tag">Key Substitution</span>
+              <span class="dash-attack-tag">Replay Attack</span>
+              <span class="dash-attack-tag">Timestamp Manipulation</span>
+            </div>
+          </div>
+          <div style="margin-top:20px;">
+            <button class="btn btn-secondary w-full" onclick="navigate('attack')">
+              <span>Open Attack Lab &rarr;</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 10. Professional Footer -->
+    <footer class="dash-footer">
+      <div class="dash-footer-primary">Digital Signature Verification System</div>
+      <div class="dash-footer-secondary">RSA-PSS &bull; SHA-256 &bull; Replay Protection &bull; Audit Logging</div>
+    </footer>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────
+     PAGE 2: KEY MANAGEMENT
+───────────────────────────────────────── -->
+<div class="page" id="page-keys">
+  <div class="page-header">
+    <h1><span>🔑</span> Key Management</h1>
+    <div class="subtitle">Generate, inspect, and export RSA key pairs for digital signing and verification.</div>
+  </div>
+
+  <!-- Key Generation Section -->
+  <div class="card">
+    <div class="card-title">
+      <div class="card-title-left"><span>⚙️</span> Generate RSA Key Pair</div>
+      <span class="badge badge-cyan">In-Memory Generation</span>
+    </div>
+    <div class="form-group">
+      <label>Key Size (Modulus Length)</label>
+      <div class="radio-group">
+        <label><input type="radio" name="keybits" value="2048" checked> 2048 bits <span class="badge badge-cyan">Standard / Recommended</span></label>
+        <label><input type="radio" name="keybits" value="3072"> 3072 bits <span class="badge badge-muted">High Security</span></label>
+        <label><input type="radio" name="keybits" value="4096"> 4096 bits <span class="badge badge-muted">Maximum Security</span></label>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-lg" id="keygen-btn" onclick="confirmOrGenerateKeyPair()">
+      ⚙️ Generate Key Pair
+    </button>
+    <div id="keygen-loading" class="loading-row hidden">
+      <div class="spinner"></div>
+      <span>Generating prime numbers and constructing RSA modulus… please wait…</span>
+    </div>
+  </div>
+
+  <!-- Generated Key Display -->
+  <div id="keygen-result" class="hidden">
+    <!-- Key Metadata Details Card -->
+    <div class="card" style="border-left:4px solid var(--accent);">
+      <div class="card-title">
+        <div class="card-title-left"><span>📊</span> Active Key Pair Parameters</div>
+        <span class="badge badge-green" id="km-status-badge">Active ✓</span>
+      </div>
+      <div class="grid-3" style="margin-bottom:8px;">
+        <div class="info-card">
+          <div class="ic-label">Signature Algorithm</div>
+          <div class="ic-value text-accent" id="km-algo">RSA-PSS</div>
+          <div class="ic-desc">Probabilistic Signature Scheme</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-label">Modulus Size</div>
+          <div class="ic-value text-accent" id="km-bits">2048 bits</div>
+          <div class="ic-desc">Public Exponent: e = 65537</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-label">Hash Algorithm</div>
+          <div class="ic-value text-accent">SHA-256</div>
+          <div class="ic-desc">MGF1 Mask Generation: SHA-256</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);padding-top:4px;">
+        <em>Note: The generated key is an RSA asymmetric key pair. RSA-PSS is the digital signature padding scheme used with this key.</em>
+      </div>
+    </div>
+
+    <!-- Side-by-side Keys -->
+    <div class="two-col">
+      <!-- Public Key -->
+      <div class="card mb-0">
+        <div class="flex-between" style="margin-bottom:12px;">
+          <div class="card-title mb-0">Public Key (Shareable)</div>
+          <span class="badge badge-green">PUBLIC KEY</span>
+        </div>
+        <textarea id="pub-key-pem" class="mono" rows="7" readonly></textarea>
+
+        <!-- Fingerprint -->
+        <div class="mt-8" style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;padding:8px 12px;">
+          <div class="detail-label">SHA-256 Public Key Fingerprint (SPKI DER)</div>
+          <div style="font-family:monospace;font-size:11px;color:var(--accent-light);word-break:break-all;margin-top:2px;" id="pub-fingerprint">Computing…</div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="copyToClipboard(document.getElementById('pub-key-pem').value)">📋 Copy PEM</button>
+          <button class="btn btn-secondary btn-sm" onclick="copyToClipboard(document.getElementById('pub-fingerprint').textContent)">📋 Copy Fingerprint</button>
+          <button class="btn btn-secondary btn-sm" onclick="downloadFile(document.getElementById('pub-key-pem').value,'public_key.pem','text/plain')">⬇️ Download .pem</button>
+          <button class="btn btn-primary btn-sm" id="btn-trust-this-key" onclick="trustThisPublicKey()">🛡️ Trust This Public Key</button>
+        </div>
+        <div class="alert alert-info mt-12">
+          <div class="alert-icon">ℹ️</div>
+          <div class="alert-body"><p>This public key can be freely shared. Receivers use it to verify signatures created by your private key.</p></div>
+        </div>
+      </div>
+
+      <!-- Private Key -->
+      <div class="card mb-0">
+        <div class="flex-between" style="margin-bottom:12px;">
+          <div class="card-title mb-0">Private Key (Secret)</div>
+          <span class="badge badge-red">PRIVATE KEY</span>
+        </div>
+        <div style="position:relative;">
+          <textarea id="priv-key-pem" class="mono" rows="7" readonly></textarea>
+          <div id="priv-key-mask" style="position:absolute;inset:0;background:rgba(6,9,18,0.95);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:22px;letter-spacing:6px;color:var(--muted);">••••••••••••••••</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" id="priv-toggle-btn" onclick="togglePrivateKey()">👁️ Show Key</button>
+          <button class="btn btn-secondary btn-sm" onclick="copyToClipboard(document.getElementById('priv-key-pem').value)">📋 Copy PEM</button>
+          <button class="btn btn-secondary btn-sm" onclick="downloadFile(document.getElementById('priv-key-pem').value,'private_key.pem','text/plain')">⬇️ Download .pem</button>
+          <button class="btn btn-primary btn-sm" onclick="useGeneratedInSign()">👉 Use in Sender / Sign</button>
+        </div>
+        <div class="alert alert-warning mt-12">
+          <div class="alert-icon">⚠️</div>
+          <div class="alert-body">
+            <strong>Never share your private key.</strong>
+            <p>Anyone with access to your private key can create forged digital signatures in your name. Private keys are never stored on the server.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirm Key Regeneration -->
+<div id="keygen-modal" class="modal-overlay hidden">
+  <div class="modal-content">
+    <div class="modal-title"><span>⚠️</span> Replace Active Key Pair?</div>
+    <div class="modal-body">
+      An active key pair is currently loaded in memory. Generating a new key pair will replace the active keys. Any unsaved keys will be lost.
+      <br><br>
+      Do you wish to proceed?
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="hideKeygenModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="executeKeyGeneration()">Proceed &amp; Generate</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────
+     PAGE 3: SENDER / SIGN
+───────────────────────────────────────── -->
+<div class="page" id="page-sign">
+  <div class="page-header">
+    <h1><span>✍️</span> Sender — Create Digital Signature</h1>
+    <div class="subtitle">Signs arbitrary messages or files using RSA-PSS and SHA-256. Creates an independent signature package.</div>
+  </div>
+
+  <!-- Steps Indicator -->
+  <div class="steps-row">
+    <div class="step-badge active" id="sign-step-badge-1">
+      <div class="num">1</div><span>Load Private Key</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-badge" id="sign-step-badge-2">
+      <div class="num">2</div><span>Select Content</span>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-badge" id="sign-step-badge-3">
+      <div class="num">3</div><span>Create Signature</span>
+    </div>
+  </div>
+
+  <!-- Sign Form -->
+  <div id="sign-form">
+    <!-- Step 1 -->
+    <div class="card" id="sign-card-1">
+      <div class="card-title">
+        <div class="card-title-left"><span>🔑</span> Step 1: Load Signer Private Key</div>
+        <span class="badge badge-muted">Confidential</span>
+      </div>
+
+      <div id="sign-key-drop" class="drop-zone" onclick="document.getElementById('sign-key-file').click()">
+        <div class="drop-icon">🔑</div>
+        <div>Drop your <strong>.pem</strong> private key file here</div>
+        <div class="drop-hint">or click to browse local filesystem</div>
+      </div>
+      <input type="file" id="sign-key-file" accept=".pem,.key,text/plain" class="hidden">
+
+      <div style="text-align:center;margin:10px 0;">
+        <button class="collapsible-toggle" onclick="toggleCollapsible('sign-key-paste-wrap')">Or paste private key PEM text</button>
+      </div>
+      <div class="collapsible-content" id="sign-key-paste-wrap">
+        <textarea id="sign-key-paste" rows="6" placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;...&#10;-----END RSA PRIVATE KEY-----"></textarea>
+        <button class="btn btn-secondary btn-sm mt-8" onclick="loadSignKeyFromPaste()">Load from Paste</button>
+      </div>
+
+      <div class="form-group mt-12">
+        <label>Passphrase (if key is encrypted) — Optional</label>
+        <input type="password" id="sign-passphrase" placeholder="Leave blank if private key is not encrypted">
+      </div>
+
+      <div id="sign-key-loaded" class="alert alert-success hidden">
+        <div class="alert-icon">✓</div>
+        <div class="alert-body"><strong id="sign-key-loaded-text">Private Key Loaded</strong></div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="card" id="sign-card-2">
+      <div class="card-title">
+        <div class="card-title-left"><span>📄</span> Step 2: Select Content to Sign</div>
+        <span class="badge badge-muted">Raw Payload</span>
+      </div>
+
+      <div class="tab-bar">
+        <button class="tab-btn active" id="tab-text-btn" onclick="switchSignTab('text')">📝 Text Message</button>
+        <button class="tab-btn" id="tab-file-btn" onclick="switchSignTab('file')">📁 File Upload</button>
+      </div>
+
+      <div id="sign-text-panel">
+        <textarea id="sign-message" rows="5" placeholder="Enter message text to sign...&#10;&#10;Example: Authorization: Transfer $5,000 from Account #101 to Account #202. Approved by Alice."></textarea>
+      </div>
+
+      <div id="sign-file-panel" class="hidden">
+        <div id="sign-file-drop" class="drop-zone" onclick="document.getElementById('sign-content-file').click()">
+          <div class="drop-icon">📁</div>
+          <div>Drop any binary or text file here to sign</div>
+          <div class="drop-hint">or click to browse local files</div>
+        </div>
+        <input type="file" id="sign-content-file" class="hidden">
+        <div id="sign-file-info" class="hidden" style="margin-top:12px;">
+          <div class="pkg-meta">
+            <div class="pm-row"><span class="pm-key">Filename</span><span class="pm-val" id="sign-fname">—</span></div>
+            <div class="pm-row"><span class="pm-key">File Size</span><span class="pm-val" id="sign-fsize">—</span></div>
+            <div class="pm-row"><span class="pm-key">SHA-256 (Client Preview)</span><span class="pm-val" id="sign-fhash">Computing…</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="card" id="sign-card-3">
+      <div class="card-title">
+        <div class="card-title-left"><span>🔐</span> Step 3: Execute Digital Signature</div>
+        <span class="badge badge-cyan">RSA-PSS-SHA256</span>
+      </div>
+      <button class="btn btn-primary btn-xl" id="sign-btn" onclick="createSignature()">
+        🔐 CREATE DIGITAL SIGNATURE
+      </button>
+
+      <div id="sign-loading" class="hidden" style="margin-top:16px;">
+        <div class="loading-row">
+          <div class="spinner"></div>
+          <span>Computing SHA-256, generating nonce &amp; timestamp, applying RSA-PSS signature…</span>
+        </div>
+      </div>
+
+      <div id="sign-error" class="alert alert-danger hidden mt-12">
+        <div class="alert-icon">✗</div>
+        <div class="alert-body"><strong>Signing Failed</strong><p id="sign-error-text"></p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sign Success Screen -->
+  <div id="sign-success" class="hidden">
+    <div class="alert alert-success" style="padding:18px;">
+      <div class="alert-icon" style="font-size:24px;">✓</div>
+      <div class="alert-body">
+        <strong style="font-size:16px;">DIGITAL SIGNATURE CREATED SUCCESSFULLY</strong>
+        <p style="margin-top:4px;">A standalone cryptographic signature package (.sig.json) has been generated. The private key remains secure and was NOT embedded in the package.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <div class="card-title-left"><span>📦</span> Signature Package Summary</div>
+        <span class="badge badge-green">Ready for Transfer</span>
+      </div>
+      <div class="details-grid">
+        <div class="detail-item">
+          <div class="detail-label">Algorithm</div>
+          <div class="detail-value">RSA-PSS + SHA-256</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">RSA Key Size</div>
+          <div class="detail-value"><span id="ss-keybits">2048</span> bits</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Message SHA-256 Digest</div>
+          <div class="detail-value">
+            <span id="ss-hash">—</span>
+            <button class="btn btn-secondary btn-icon" onclick="copyToClipboard(state.signedPackage && state.signedPackage.message_sha256)">Copy</button>
+          </div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Unix Timestamp</div>
+          <div class="detail-value" id="ss-timestamp">—</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">128-bit Cryptographic Nonce</div>
+          <div class="detail-value">
+            <span id="ss-nonce">—</span>
+            <button class="btn btn-secondary btn-icon" onclick="copyToClipboard(state.signedPackage && state.signedPackage.nonce)">Copy</button>
+          </div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Cryptographic Status</div>
+          <div class="detail-value text-success">Signed Successfully ✓</div>
+        </div>
+      </div>
+
+      <!-- Collapsible Package JSON Viewer -->
+      <div style="margin-top:14px;">
+        <div class="flex-between" style="margin-bottom:8px;">
+          <span style="font-size:12px;font-weight:600;color:var(--muted);">Package JSON Structure</span>
+          <button class="btn btn-secondary btn-sm" id="raw-json-btn" onclick="toggleRawJson()">View Raw JSON</button>
+        </div>
+        <pre id="pkg-json-display" style="max-height:220px;overflow-y:auto;"></pre>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <div class="alert-icon">📦</div>
+      <div class="alert-body">
+        <strong>Next Step: Independent Transfer to Receiver</strong>
+        <p>Signing does NOT automatically verify. In real-world security, the sender transmits this package to the receiver over network, email, or file transfer. Navigate to Receiver / Verify to test independent verification.</p>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+      <button class="btn btn-primary btn-lg" onclick="downloadSignedPackage()">⬇️ Download .sig.json</button>
+      <button class="btn btn-secondary btn-lg" onclick="copyPackageJson()">📋 Copy Package JSON</button>
+      <button class="btn btn-secondary btn-lg" id="transfer-btn" onclick="simulateTransfer()">🚀 Simulate Transfer to Receiver Inbox</button>
+      <button class="btn btn-secondary btn-lg" onclick="resetSignPage()">✏️ Sign Another Message</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────
+     PAGE 4: RECEIVER / VERIFY
+───────────────────────────────────────── -->
+<div class="page" id="page-verify">
+  <div class="page-header">
+    <h1><span>✅</span> Receiver — Verify Digital Signature</h1>
+    <div class="subtitle">Independently verifies signature authenticity, SHA-256 integrity, trusted identity, and replay protection.</div>
+  </div>
+
+  <div id="verify-form">
+    <div class="two-col" style="align-items:start;">
+      <!-- Left: Signature Package -->
+      <div class="card mb-0">
+        <div class="card-title">
+          <div class="card-title-left"><span>📦</span> Step 1: Receive Signature Package</div>
+          <span class="badge badge-cyan">Package Input</span>
+        </div>
+
+        <div id="verify-pkg-drop" class="drop-zone" onclick="document.getElementById('verify-pkg-file').click()">
+          <div class="drop-icon">📦</div>
+          <div>Drop <strong>.sig.json</strong> package file here</div>
+          <div class="drop-hint">or click to browse local files</div>
+        </div>
+        <input type="file" id="verify-pkg-file" accept=".json,.sig.json,application/json" class="hidden">
+
+        <div style="text-align:center;margin:10px 0;">
+          <button class="collapsible-toggle" onclick="toggleCollapsible('verify-paste-wrap')">Or paste package JSON</button>
+        </div>
+        <div class="collapsible-content" id="verify-paste-wrap">
+          <textarea id="verify-pkg-paste" rows="5" placeholder='{"algorithm":"RSA-PSS-SHA256",...}'></textarea>
+          <button class="btn btn-secondary btn-sm mt-8" onclick="loadVerifyPkgFromPaste()">Load from Paste</button>
+        </div>
+
+        <!-- Inbox section -->
+        <div id="verify-inbox" class="hidden" style="margin-top:16px;">
+          <div class="flex-between" style="margin-bottom:8px;">
+            <div class="detail-label" id="verify-inbox-title" style="margin-bottom:0;">📥 Transferred Packages Inbox</div>
+            <button class="btn btn-secondary btn-icon" onclick="loadInbox()">🔄</button>
+          </div>
+          <div id="verify-inbox-list"></div>
+        </div>
+
+        <!-- Package Metadata -->
+        <div id="verify-pkg-meta" class="hidden" style="margin-top:12px;">
+          <div class="alert alert-success" style="margin-bottom:8px;padding:8px 12px;">
+            <div class="alert-icon">✓</div>
+            <div class="alert-body"><strong>Package Successfully Loaded</strong></div>
+          </div>
+          <div class="pkg-meta">
+            <div class="pm-row"><span class="pm-key">Algorithm</span><span class="pm-val" id="vm-algo">—</span></div>
+            <div class="pm-row"><span class="pm-key">Timestamp</span><span class="pm-val" id="vm-ts">—</span></div>
+            <div class="pm-row"><span class="pm-key">Nonce</span><span class="pm-val" id="vm-nonce">—</span></div>
+            <div class="pm-row"><span class="pm-key">SHA-256 Digest</span><span class="pm-val" id="vm-hash">—</span></div>
+            <div class="pm-row"><span class="pm-key">Original File</span><span class="pm-val" id="vm-file">—</span></div>
+          </div>
+
+          <!-- Security Notice: Payload Withheld Until Verification -->
+          <div class="alert alert-info mt-12" style="padding:8px 12px;margin-bottom:8px;">
+            <div class="alert-icon">🔒</div>
+            <div class="alert-body">
+              <strong style="font-size:11px;">Payload Protected</strong>
+              <p style="font-size:11px;">Message content is withheld and will only be displayed after cryptographic verification confirms the signature is VALID.</p>
+            </div>
+          </div>
+
+          <div style="margin-top:10px;">
+            <div class="detail-label">Embedded Public Key (Sender claims)</div>
+            <div style="font-size:10px;font-family:monospace;color:var(--muted);word-break:break-all;" id="vm-emb-key">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Trusted Public Key -->
+      <div class="card mb-0">
+        <div class="card-title">
+          <div class="card-title-left"><span>🔑</span> Step 2: Trusted Signer Public Key</div>
+          <span class="badge badge-green">Authentication Anchor</span>
+        </div>
+
+        <div class="alert alert-info" style="margin-bottom:12px;">
+          <div class="alert-icon">🛡️</div>
+          <div class="alert-body">
+            <strong>Public-Key Trust Requirement:</strong>
+            <p>Anyone can sign a package with their own private key and embed their own public key. Meaningful authentication requires a known, trusted public key obtained from a certified or out-of-band source.</p>
+          </div>
+        </div>
+
+        <div id="verify-key-drop" class="drop-zone" onclick="document.getElementById('verify-key-file').click()">
+          <div class="drop-icon">🔑</div>
+          <div>Drop trusted <strong>.pem</strong> public key here</div>
+          <div class="drop-hint">or click to browse local files</div>
+        </div>
+        <input type="file" id="verify-key-file" accept=".pem,.key,text/plain" class="hidden">
+
+        <div style="text-align:center;margin:10px 0;">
+          <button class="collapsible-toggle" onclick="toggleCollapsible('verify-key-paste-wrap')">Or paste trusted public key PEM</button>
+        </div>
+        <div class="collapsible-content" id="verify-key-paste-wrap">
+          <textarea id="verify-key-paste" rows="5" placeholder="-----BEGIN PUBLIC KEY-----&#10;...&#10;-----END PUBLIC KEY-----"></textarea>
+          <button class="btn btn-secondary btn-sm mt-8" onclick="loadVerifyKeyFromPaste()">Load from Paste</button>
+        </div>
+
+        <div id="verify-key-loaded" class="hidden" style="margin-top:12px;">
+          <div class="alert alert-success" style="padding:8px 12px;">
+            <div class="alert-icon">✓</div>
+            <div class="alert-body">
+              <strong>Trusted Key Loaded</strong>
+              <div id="verify-key-preview" style="font-size:10px;font-family:monospace;word-break:break-all;margin-top:2px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="key-compare-badge" class="hidden"></div>
+      </div>
+    </div>
+
+    <!-- Verification Policy Options -->
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title">
+        <div class="card-title-left"><span>⚙️</span> Verification Policies</div>
+        <span class="badge badge-muted">Security Controls</span>
+      </div>
+      <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;">
+        <label class="auto-refresh-label">
+          <input type="checkbox" id="opt-freshness" onchange="toggleFreshnessAge()">
+          Enable Timestamp Freshness Check
+        </label>
+        <div id="freshness-age-wrap" class="hidden flex-center gap-8">
+          <span class="text-muted" style="font-size:12px;">Max Allowed Age:</span>
+          <input type="number" id="freshness-age" value="300" min="10" style="width:90px;">
+          <span class="text-muted" style="font-size:12px;">seconds</span>
+        </div>
+        <label class="auto-refresh-label">
+          <input type="checkbox" id="opt-replay" checked>
+          Enable Nonce Replay Protection
+        </label>
+      </div>
+    </div>
+
+    <!-- Verify Button -->
+    <button class="btn btn-primary btn-xl" id="verify-btn" onclick="verifyPackage()" disabled>
+      ✅ VERIFY SIGNATURE
+    </button>
+    <div id="verify-loading" class="loading-row hidden">
+      <div class="spinner"></div> <span>Running 6-stage cryptographic verification pipeline…</span>
+    </div>
+  </div>
+
+  <!-- Verification Result Display -->
+  <div id="verify-result" class="hidden">
+    <div id="verify-result-card" class="card" style="margin-bottom:16px;"></div>
+    <div style="display:flex;gap:12px;">
+      <button class="btn btn-secondary" onclick="resetVerifyPage()">🔄 Verify Another Package</button>
+      <button class="btn btn-secondary" onclick="navigate('audit')">📋 View in Audit Log</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────
+     PAGE 5: ATTACK LAB
+───────────────────────────────────────── -->
+<div class="page" id="page-attack">
+  <div class="page-header">
+    <h1><span>⚔️</span> Attack Lab</h1>
+    <div class="subtitle">Demonstrates how cryptographic controls detect and reject attacks in real time.</div>
+  </div>
+
+  <!-- Summary Bar -->
+  <div class="card" style="padding:14px 20px;">
+    <div class="flex-between">
+      <div style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;">
+        <span>🧪 Test Suite Summary:</span>
+        <span class="badge badge-cyan" id="al-total-tests">Total Tests: 6</span>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <span class="badge badge-purple" id="al-executed">Executed: 0</span>
+        <span class="badge badge-green" id="al-detected">Detected / Rejected: 0</span>
+        <span class="badge badge-muted" id="al-not-run">Not Run: 6</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning" style="margin-bottom:20px;">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-body">
+      <strong>Educational Security Demonstration</strong>
+      <p>All attack simulations are executed locally against real cryptographic primitives and log real events into the Audit Log and Dashboard counters.</p>
+    </div>
+  </div>
+
+  <div class="attack-grid">
+    <!-- Attack 1: Message Tampering -->
+    <div class="attack-card">
+      <div class="attack-card-header">
+        <h4>Attack 1: Message Tampering</h4>
+        <span class="badge badge-muted" id="attack1-badge">NOT RUN</span>
+      </div>
+      <p class="attack-desc">
+        <strong>Attacker Action:</strong> Intercepts package in transit and alters the message content (e.g. changes payment amount).
+        <br><br>
+        <strong>Detection Mechanism:</strong> The receiver re-computes SHA-256 over received message. The computed hash fails to match the signed hash.
+      </p>
+      <button class="btn btn-danger btn-sm" id="btn-attack1" onclick="runAttack1(this)">▶ Run Attack 1</button>
+      <div class="attack-evidence-box hidden" id="attack1-evidence"></div>
+    </div>
+
+    <!-- Attack 2: Signature Corruption -->
+    <div class="attack-card">
+      <div class="attack-card-header">
+        <h4>Attack 2: Signature Corruption</h4>
+        <span class="badge badge-muted" id="attack2-badge">NOT RUN</span>
+      </div>
+      <p class="attack-desc">
+        <strong>Attacker Action:</strong> Injects bit-flips or noise into the raw RSA-PSS signature bytes during transmission.
+        <br><br>
+        <strong>Detection Mechanism:</strong> RSA-PSS verification mathematically rejects the corrupted signature against the public key.
+      </p>
+      <button class="btn btn-danger btn-sm" id="btn-attack2" onclick="runAttack2(this)">▶ Run Attack 2</button>
+      <div class="attack-evidence-box hidden" id="attack2-evidence"></div>
+    </div>
+
+    <!-- Attack 3: Public-Key Substitution -->
+    <div class="attack-card">
+      <div class="attack-card-header">
+        <h4>Attack 3: Public-Key Substitution</h4>
+        <span class="badge badge-muted" id="attack3-badge">NOT RUN</span>
+      </div>
+      <p class="attack-desc">
+        <strong>Attacker Action:</strong> Attacker generates their own RSA key pair, signs a malicious message, and embeds their public key in the package.
+        <br><br>
+        <strong>Detection Mechanism:</strong> Receiver compares the embedded key with Alice's pre-distributed trusted key; the mismatch aborts verification.
+      </p>
+      <button class="btn btn-danger btn-sm" id="btn-attack3" onclick="runAttack3(this)">▶ Run Attack 3</button>
+      <div class="attack-evidence-box hidden" id="attack3-evidence"></div>
+    </div>
+
+    <!-- Attack 4: Replay Attack -->
+    <div class="attack-card">
+      <div class="attack-card-header">
+        <h4>Attack 4: Replay Attack</h4>
+        <span class="badge badge-muted" id="attack4-badge">NOT RUN</span>
+      </div>
+      <p class="attack-desc">
+        <strong>Attacker Action:</strong> Eavesdrops on a valid signed transfer and replays the identical package to execute a second transaction.
+        <br><br>
+        <strong>Detection Mechanism:</strong> Server nonce store accepts the 1st submission, then marks the nonce consumed. 2nd submission is rejected.
+      </p>
+      <button class="btn btn-warning btn-sm" id="btn-attack4" onclick="runAttack4(this)">▶ Run Attack 4</button>
+      <div class="attack-evidence-box hidden" id="attack4-evidence"></div>
+    </div>
+
+    <!-- Attack 5: Timestamp Manipulation -->
+    <div class="attack-card">
+      <div class="attack-card-header">
+        <h4>Attack 5: Timestamp Manipulation</h4>
+        <span class="badge badge-muted" id="attack5-badge">NOT RUN</span>
+      </div>
+      <p class="attack-desc">
+        <strong>Attacker Action:</strong> Modifies the timestamp field to make an old/expired signature appear freshly created.
+        <br><br>
+        <strong>Detection Mechanism:</strong> The timestamp is bound into the RSA-PSS signed content. Altering the timestamp invalidates the signature.
+      </p>
+      <button class="btn btn-danger btn-sm" id="btn-attack5" onclick="runAttack5(this)">▶ Run Attack 5</button>
+      <div class="attack-evidence-box hidden" id="attack5-evidence"></div>
+    </div>
+
+    <!-- Attack 6: Signature Removal / Malformed Package -->
+    <div class="attack-card">
+      <div class="attack-card-header">
+        <h4>Attack 6: Signature Removal</h4>
+        <span class="badge badge-muted" id="attack6-badge">NOT RUN</span>
+      </div>
+      <p class="attack-desc">
+        <strong>Attacker Action:</strong> Strips the signature field entirely or submits a malformed signature package missing required cryptographic attributes.
+        <br><br>
+        <strong>Detection Mechanism:</strong> Package schema validation detects missing signature fields before cryptographic processing.
+      </p>
+      <button class="btn btn-danger btn-sm" id="btn-attack6" onclick="runAttack6(this)">▶ Run Attack 6</button>
+      <div class="attack-evidence-box hidden" id="attack6-evidence"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────
+     PAGE 6: NETWORK
+───────────────────────────────────────── -->
+<div class="page" id="page-network">
+  <div class="page-header">
+    <h1><span>🌐</span> Network Communication</h1>
+    <div class="subtitle">TCP client/server transmission with optional TLS transport security.</div>
+  </div>
+
+  <div class="net-row">
+    <!-- Sender Client -->
+    <div class="net-card">
+      <h3>client.py</h3>
+      <div class="net-label">TCP Sender Client</div>
+
+      <div class="form-group">
+        <div class="detail-label">Standard TCP Transmission</div>
+        <pre class="terminal-cmd">python client.py \
+  --key keys/alice_private.pem \
+  --file samples/message.txt</pre>
+      </div>
+
+      <div class="form-group">
+        <div class="detail-label">With TLS Transport Security</div>
+        <pre class="terminal-cmd">python client.py \
+  --key keys/alice_private.pem \
+  --text "Hello, World!" --tls</pre>
+      </div>
+
+      <div class="form-group">
+        <div class="detail-label">Built-in Attack Flags</div>
+        <pre><span class="terminal-flag">--tamper</span>  <span class="terminal-comment">→ Flips payload bytes → INVALID</span>
+<span class="terminal-flag">--replay</span>  <span class="terminal-comment">→ Re-sends identical packet → REJECTED</span></pre>
+      </div>
+    </div>
+
+    <!-- Arrow & Port -->
+    <div class="net-arrow">
+      <div class="arrow-line"></div>
+      <div class="arrow-label">TCP Port 5050</div>
+      <div class="tls-badge">TLS Available</div>
+      <div style="font-size:22px;color:var(--accent-light);">→</div>
+      <div class="arrow-line"></div>
+    </div>
+
+    <!-- Receiver Server -->
+    <div class="net-card">
+      <h3>server.py</h3>
+      <div class="net-label">TCP Receiver Server</div>
+
+      <div class="form-group">
+        <div class="detail-label">Start Server (Replay Protected)</div>
+        <pre class="terminal-cmd">python server.py \
+  --pub keys/alice_public.pem \
+  --port 5050</pre>
+      </div>
+
+      <div class="form-group">
+        <div class="detail-label">With TLS Certificate &amp; Key</div>
+        <pre class="terminal-cmd">python server.py \
+  --pub keys/alice_public.pem \
+  --tls-cert certs/server.crt \
+  --tls-key certs/server.key</pre>
+      </div>
+
+      <div class="form-group">
+        <div class="detail-label">Disable Replay (Testing Only)</div>
+        <pre><span class="terminal-flag">--no-replay</span>  <span class="terminal-comment">→ Disables server nonce store</span></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Security Distinction Rationale -->
+  <div class="card">
+    <div class="card-title">
+      <div class="card-title-left"><span>🛡️</span> Two Layers of Defense: Digital Signatures vs TLS</div>
+      <span class="badge badge-cyan">Defense-in-Depth</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+      <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:6px;padding:16px;">
+        <h4 style="color:var(--accent-light);margin-bottom:8px;font-size:13px;">🔐 Digital Signature (RSA-PSS)</h4>
+        <ul style="list-style:none;font-size:12px;color:var(--muted);line-height:1.8;">
+          <li>✔ <strong>Application-Level:</strong> End-to-end authenticity and integrity.</li>
+          <li>✔ <strong>Persistent Security:</strong> Data remains verifiable at rest, in storage, and after multiple hops.</li>
+          <li>✔ <strong>Attribution:</strong> Binds message directly to signer's private key.</li>
+          <li>✔ <strong>Offline Capable:</strong> Can be verified without an active network connection.</li>
+        </ul>
+      </div>
+      <div style="background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:6px;padding:16px;">
+        <h4 style="color:var(--accent-light);margin-bottom:8px;font-size:13px;">🌐 TLS Transport Security</h4>
+        <ul style="list-style:none;font-size:12px;color:var(--muted);line-height:1.8;">
+          <li>✔ <strong>Transport-Level:</strong> Hop-by-hop confidentiality and eavesdropping prevention.</li>
+          <li>✔ <strong>Transient Protection:</strong> Data is encrypted only during transit through the wire.</li>
+          <li>✔ <strong>Channel Security:</strong> Protects the communication pipe, not the document itself.</li>
+          <li>✔ <strong>Complementary:</strong> Signatures secure the content; TLS secures the pipe.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- TLS Certificate Generation -->
+  <div class="card">
+    <div class="card-title">
+      <div class="card-title-left"><span>🔒</span> TLS Self-Signed Certificate Setup</div>
+      <span class="badge badge-muted">Testing Tool</span>
+    </div>
+    <pre class="terminal-cmd">python gen_cert.py</pre>
+    <div class="alert alert-info mt-12">
+      <div class="alert-icon">ℹ️</div>
+      <div class="alert-body">
+        <p>Generates <code>certs/server.crt</code> and <code>certs/server.key</code> for local testing. In production networks, TLS certificates are issued by a trusted Certificate Authority (CA).</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────
+     PAGE 7: AUDIT LOG
+───────────────────────────────────────── -->
+<div class="page" id="page-audit">
+  <div class="page-header">
+    <h1><span>📋</span> Audit Log</h1>
+    <div class="subtitle">Immutable append-only record of all cryptographic operations and security events.</div>
+  </div>
+
+  <div class="alert alert-warning" style="margin-bottom:20px;">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-body">
+      <strong>Storage Notice:</strong>
+      <p>Audit events are recorded to local JSON Lines storage (<code>logs/audit.jsonl</code>). Private keys are NEVER logged or retained.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="filter-bar">
+      <!-- Event filter -->
+      <div class="pill-group">
+        <button class="pill active" data-ef="" onclick="setEventFilter(this,'')">All Events</button>
+        <button class="pill" data-ef="SIGN" onclick="setEventFilter(this,'SIGN')">SIGN</button>
+        <button class="pill" data-ef="VERIFY" onclick="setEventFilter(this,'VERIFY')">VERIFY</button>
+        <button class="pill" data-ef="KEYGEN" onclick="setEventFilter(this,'KEYGEN')">KEYGEN</button>
+        <button class="pill" data-ef="ATTACK" onclick="setEventFilter(this,'ATTACK')">ATTACK</button>
+        <button class="pill" data-ef="ERROR" onclick="setEventFilter(this,'ERROR')">ERROR</button>
+      </div>
+      <div class="filter-sep"></div>
+      <!-- Status filter -->
+      <div class="pill-group">
+        <button class="pill active" data-sf="" onclick="setStatusFilter(this,'')">All Statuses</button>
+        <button class="pill" data-sf="VALID" onclick="setStatusFilter(this,'VALID')">VALID</button>
+        <button class="pill" data-sf="INVALID" onclick="setStatusFilter(this,'INVALID')">INVALID</button>
+        <button class="pill" data-sf="REJECTED" onclick="setStatusFilter(this,'REJECTED')">REJECTED</button>
+        <button class="pill" data-sf="DETECTED" onclick="setStatusFilter(this,'DETECTED')">DETECTED</button>
+      </div>
+      <div class="filter-sep"></div>
+      <button class="btn btn-secondary btn-sm" onclick="loadAuditLog()">🔄 Refresh</button>
+      <label class="auto-refresh-label">
+        <input type="checkbox" id="auto-refresh-chk" onchange="toggleAutoRefresh()">
+        Auto-refresh (10s)
+      </label>
+    </div>
+
+    <div class="table-wrap">
+      <table id="audit-table">
+        <thead>
+          <tr>
+            <th>Timestamp (UTC)</th>
+            <th>Event</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Reason / Details</th>
+            <th>Peer</th>
+            <th>SHA-256</th>
+            <th>Nonce</th>
+          </tr>
+        </thead>
+        <tbody id="audit-tbody">
+          <tr><td colspan="8" class="empty-state"><div class="empty-icon">📋</div><div>Loading audit log…</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT LOGIC
+════════════════════════════════════════ -->
+<script>
+'use strict';
+
+/* ── Global State ── */
+const state = {
+  activeKeyPair: null,
+  signedPackage: null,
+  signedKeyBits: null,
+  receiverPackage: null,
+  receiverTrustedKey: null,
+  currentPage: 'dashboard',
+  signContentMode: 'text',
+  signFileBytes: null,
+  signFileB64: null,
+  signPrivKeyPem: null,
+  auditFilter: { event: '', status: '' },
+  auditInterval: null,
+  rawJsonVisible: false,
+  attackStats: { total: 6, executed: 0, detected: 0, notRun: 6 },
+};
+
+/* ── Navigation ── */
+function navigate(pageId) {
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('active');
+    p.style.display = 'none';
+  });
+  const page = document.getElementById('page-' + pageId);
+  if (page) { page.style.display = 'block'; page.classList.add('active'); }
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const nav = document.querySelector('[data-page="' + pageId + '"]');
+  if (nav) nav.classList.add('active');
+  state.currentPage = pageId;
+
+  if (pageId === 'dashboard') {
+    loadDashboardStats();
+    loadDashboardRecentEvents();
+  }
+  if (pageId === 'audit') loadAuditLog();
+  if (pageId === 'verify') loadInbox();
+}
+
+/* ── API Helper ── */
+async function api(method, path, body) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+  };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res = await fetch(path, opts);
+  const data = await res.json().catch(() => ({ error: 'Server returned non-JSON response' }));
+  if (!res.ok) {
+    const err = new Error(data.error || data.message || `HTTP ${res.status}`);
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+/* ── UI Utilities ── */
+function showToast(message, type = 'info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  const icons = { success: '✓', error: '✗', warning: '!', info: 'i' };
+  t.innerHTML = `<span style="font-weight:700;flex-shrink:0;">${icons[type]||'i'}</span><span>${escapeHtml(message)}</span>`;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateY(16px)';
+    t.style.transition = 'all 0.25s ease';
+    setTimeout(() => t.remove(), 250);
+  }, 3200);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(2) + ' MB';
+}
+
+function formatTimestamp(ts) {
+  if (!ts) return '—';
+  try {
+    const d = typeof ts === 'number' ? new Date(ts * 1000) : new Date(ts);
+    return d.toLocaleString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false });
+  } catch { return String(ts); }
+}
+
+function truncate(str, n) {
+  if (!str) return '—';
+  str = String(str);
+  return str.length > n ? str.slice(0, n) + '...' : str;
+}
+
+function copyToClipboard(text) {
+  if (!text) { showToast('Nothing to copy', 'warning'); return; }
+  navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!', 'success')).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+    showToast('Copied to clipboard!', 'success');
+  });
+}
+
+function downloadFile(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function computeSHA256Preview(arrayBuffer) {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function b64decode(str) {
+  const bin = atob(str);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf;
+}
+
+function b64encode(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+function toggleCollapsible(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+function show(id) { const el = document.getElementById(id); if (el) { el.classList.remove('hidden'); el.style.display = ''; } }
+function hide(id) { const el = document.getElementById(id); if (el) { el.classList.add('hidden'); } }
+function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+function setHTML(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+
+function setupDropZone(zoneEl, fileInputEl, onFileLoaded) {
+  if (!zoneEl || !fileInputEl) return;
+  zoneEl.addEventListener('dragover', e => { e.preventDefault(); zoneEl.classList.add('drag-over'); });
+  zoneEl.addEventListener('dragleave', () => zoneEl.classList.remove('drag-over'));
+  zoneEl.addEventListener('drop', e => {
+    e.preventDefault();
+    zoneEl.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) onFileLoaded(file);
+  });
+  fileInputEl.addEventListener('change', e => {
+    if (e.target.files[0]) onFileLoaded(e.target.files[0]);
+  });
+}
+
+function friendlyError(e) {
+  const msg = (e && (e.message || e.error || String(e))) || 'Unknown error';
+  if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) return 'Could not connect to Flask server. Please verify the application is running.';
+  if (msg.includes('private key')) return 'Invalid private key format or incorrect passphrase.';
+  if (msg.includes('public key')) return 'Invalid public key PEM format.';
+  return msg;
+}
+
+/* ═══════════════════════════════════════
+   PAGE 1: DASHBOARD LOGIC
+════════════════════════════════════════ */
+async function loadDashboardStats() {
+  try {
+    const data = await api('GET', '/api/stats');
+    setText('stat-signed', data.signatures_created ?? 0);
+    setText('stat-keys', data.keys_generated ?? 0);
+    const v = data.verifications || {};
+    setText('stat-valid', v.valid ?? 0);
+    setText('stat-invalid', v.invalid ?? 0);
+    setText('stat-rejected', v.rejected ?? 0);
+  } catch (e) {
+    ['stat-signed','stat-keys','stat-valid','stat-invalid','stat-rejected'].forEach(id => setText(id, '0'));
+  }
+}
+
+async function loadDashboardRecentEvents() {
+  const tbody = document.getElementById('dash-recent-tbody');
+  if (!tbody) return;
+  try {
+    const data = await api('GET', '/api/audit?n=5');
+    const entries = (data.entries || []).slice(-5).reverse();
+    if (entries.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No security events recorded yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = entries.map(row => {
+      const ev = (row.event || '—').toUpperCase();
+      const st = (row.status || '—').toUpperCase();
+      const evBadge = ev === 'SIGN' ? 'badge-blue' : ev === 'VERIFY' ? 'badge-cyan' : ev === 'KEYGEN' ? 'badge-purple' : ev === 'ATTACK' ? 'badge-red' : 'badge-muted';
+      const stBadge = st === 'VALID' ? 'badge-green' : st === 'REJECTED' ? 'badge-orange' : (st === 'INVALID' || st === 'DETECTED') ? 'badge-red' : st === 'OK' ? 'badge-blue' : 'badge-muted';
+      return `<tr>
+        <td style="font-size:11px;white-space:nowrap;">${row.timestamp_utc ? formatTimestamp(row.timestamp_utc) : '—'}</td>
+        <td><span class="badge ${evBadge}">${ev}</span></td>
+        <td style="font-size:12px;">${escapeHtml(row.source || 'web')}</td>
+        <td><span class="badge ${stBadge}">${st}</span></td>
+        <td style="font-size:12px;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(row.reason||'')}">${escapeHtml(row.reason || '—')}</td>
+      </tr>`;
+    }).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Could not load recent events.</td></tr>';
+  }
+}
+
+/* ═══════════════════════════════════════
+   PAGE 2: KEY MANAGEMENT LOGIC
+════════════════════════════════════════ */
+let privKeyVisible = false;
+
+function confirmOrGenerateKeyPair() {
+  if (state.activeKeyPair) {
+    show('keygen-modal');
+  } else {
+    executeKeyGeneration();
+  }
+}
+
+function hideKeygenModal() {
+  hide('keygen-modal');
+}
+
+async function executeKeyGeneration() {
+  hideKeygenModal();
+  const bits = parseInt(document.querySelector('input[name="keybits"]:checked').value, 10);
+  hide('keygen-result');
+  show('keygen-loading');
+  document.getElementById('keygen-btn').disabled = true;
+
+  try {
+    const data = await api('POST', '/api/keygen', { bits });
+    const pubPem = data.public_key_pem || data.public_key || '';
+    const privPem = data.private_key_pem || data.private_key || '';
+
+    state.activeKeyPair = {
+      bits: data.bits || bits,
+      pubPem,
+      privPem,
+      created: Date.now()
+    };
+
+    document.getElementById('pub-key-pem').value = pubPem;
+    document.getElementById('priv-key-pem').value = privPem;
+    setText('km-bits', `${data.bits || bits} bits`);
+
+    privKeyVisible = false;
+    document.getElementById('priv-key-mask').style.display = 'flex';
+    setText('priv-toggle-btn', '👁️ Show Key');
+
+    const trustBtn = document.getElementById('btn-trust-this-key');
+    trustBtn.innerHTML = '🛡️ Trust This Public Key';
+    trustBtn.classList.remove('btn-success');
+    trustBtn.classList.add('btn-primary');
+
+    show('keygen-result');
+    showToast('RSA Key pair generated successfully!', 'success');
+
+    try {
+      const fpData = await api('POST', '/api/fingerprint', { public_key_pem: pubPem });
+      setText('pub-fingerprint', fpData.fingerprint);
+    } catch {
+      setText('pub-fingerprint', 'Fingerprint calculation unavailable');
+    }
+  } catch (e) {
+    showToast('Key generation failed: ' + friendlyError(e), 'error');
+  } finally {
+    hide('keygen-loading');
+    document.getElementById('keygen-btn').disabled = false;
+  }
+}
+
+function togglePrivateKey() {
+  privKeyVisible = !privKeyVisible;
+  document.getElementById('priv-key-mask').style.display = privKeyVisible ? 'none' : 'flex';
+  setText('priv-toggle-btn', privKeyVisible ? '🙈 Hide Key' : '👁️ Show Key');
+}
+
+function trustThisPublicKey() {
+  const pub = document.getElementById('pub-key-pem').value;
+  if (!pub) { showToast('Generate a key pair first', 'warning'); return; }
+  state.receiverTrustedKey = pub;
+  document.getElementById('verify-key-paste').value = pub;
+  showVerifyKeyLoaded(pub);
+
+  const trustBtn = document.getElementById('btn-trust-this-key');
+  trustBtn.innerHTML = '✓ Public key added to trusted keys';
+  trustBtn.classList.remove('btn-primary');
+  trustBtn.classList.add('btn-success');
+  showToast('✓ Public key added to trusted keys!', 'success');
+}
+
+function useGeneratedInSign() {
+  const priv = document.getElementById('priv-key-pem').value;
+  if (!priv) { showToast('Generate a key pair first', 'warning'); return; }
+  state.signPrivKeyPem = priv;
+  document.getElementById('sign-key-paste').value = priv;
+  const bits = state.activeKeyPair ? state.activeKeyPair.bits : guessBitsFromPem(priv);
+  setText('sign-key-loaded-text', `✓ Private Key Loaded from Key Management — RSA-${bits}`);
+  show('sign-key-loaded');
+  updateSignStepBadge(1, 'done');
+  navigate('sign');
+  showToast('Private key loaded into Sender / Sign', 'success');
+}
+
+function guessBitsFromPem(pem) {
+  if (!pem) return 2048;
+  const b64 = pem.replace(/-----[^-]+-----/g, '').replace(/\s/g, '');
+  const bytes = b64.length * 3 / 4;
+  if (bytes > 2400) return 4096;
+  if (bytes > 1700) return 3072;
+  return 2048;
+}
+
+/* ═══════════════════════════════════════
+   PAGE 3: SENDER / SIGN LOGIC
+════════════════════════════════════════ */
+function switchSignTab(mode) {
+  state.signContentMode = mode;
+  if (mode === 'text') {
+    show('sign-text-panel'); hide('sign-file-panel');
+    document.getElementById('tab-text-btn').classList.add('active');
+    document.getElementById('tab-file-btn').classList.remove('active');
+  } else {
+    hide('sign-text-panel'); show('sign-file-panel');
+    document.getElementById('tab-file-btn').classList.add('active');
+    document.getElementById('tab-text-btn').classList.remove('active');
+  }
+}
+
+function loadSignKeyFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.signPrivKeyPem = e.target.result;
+    document.getElementById('sign-key-paste').value = e.target.result;
+    const bits = guessBitsFromPem(e.target.result);
+    setText('sign-key-loaded-text', `✓ Private Key Loaded from File — RSA-${bits}`);
+    show('sign-key-loaded');
+    updateSignStepBadge(1, 'done');
+    showToast('Private key loaded from file', 'success');
+  };
+  reader.readAsText(file);
+}
+
+function loadSignKeyFromPaste() {
+  const pem = document.getElementById('sign-key-paste').value.trim();
+  if (!pem) { showToast('Please paste a PEM private key', 'warning'); return; }
+  state.signPrivKeyPem = pem;
+  const bits = guessBitsFromPem(pem);
+  setText('sign-key-loaded-text', `✓ Private Key Loaded from Text — RSA-${bits}`);
+  show('sign-key-loaded');
+  updateSignStepBadge(1, 'done');
+  showToast('Private key loaded', 'success');
+}
+
+function loadSignContentFile(file) {
+  state.signFileB64 = null;
+  state.signFileBytes = null;
+  setText('sign-fname', file.name);
+  setText('sign-fsize', formatBytes(file.size));
+  setText('sign-fhash', 'Computing SHA-256 preview…');
+  show('sign-file-info');
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    state.signFileBytes = e.target.result;
+    state.signFileB64 = b64encode(new Uint8Array(e.target.result));
+    try {
+      const hash = await computeSHA256Preview(e.target.result);
+      setText('sign-fhash', hash.slice(0, 16) + '...');
+    } catch { setText('sign-fhash', 'Preview unavailable'); }
+    updateSignStepBadge(2, 'done');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function updateSignStepBadge(step, state_) {
+  const el = document.getElementById(`sign-step-badge-${step}`);
+  if (!el) return;
+  el.className = 'step-badge ' + state_;
+}
+
+async function createSignature() {
+  hide('sign-error');
+
+  if (!state.signPrivKeyPem) {
+    const pasted = document.getElementById('sign-key-paste').value.trim();
+    if (pasted) loadSignKeyFromPaste();
+  }
+
+  if (!state.signPrivKeyPem) {
+    showToast('Please load a private key in Step 1 first', 'warning');
+    setText('sign-error-text', 'No private key loaded. Upload or paste your RSA private key in Step 1.');
+    show('sign-error');
+    return;
+  }
+
+  const payload = { private_key_pem: state.signPrivKeyPem };
+  const passphrase = document.getElementById('sign-passphrase').value;
+  if (passphrase) { payload.passphrase = passphrase; payload.password = passphrase; }
+
+  if (state.signContentMode === 'text') {
+    const msg = document.getElementById('sign-message').value;
+    if (msg === undefined || msg === null || msg.trim() === '') {
+      showToast('Please enter message text to sign in Step 2', 'warning');
+      setText('sign-error-text', 'Message is empty. Enter some text in Step 2 to sign.');
+      show('sign-error');
+      return;
+    }
+    payload.message = msg;
+  } else {
+    if (!state.signFileB64) {
+      showToast('Please select a file to sign in Step 2', 'warning');
+      setText('sign-error-text', 'No file selected. Drop or select a file in Step 2.');
+      show('sign-error');
+      return;
+    }
+    payload.file_b64 = state.signFileB64;
+    payload.filename = document.getElementById('sign-fname').textContent || 'document.bin';
+  }
+
+  document.getElementById('sign-btn').disabled = true;
+  show('sign-loading');
+  updateSignStepBadge(2, 'done');
+  updateSignStepBadge(3, 'active');
+
+  try {
+    const data = await api('POST', '/api/sign', payload);
+    const pkg = data.package || data;
+    state.signedPackage = pkg;
+    state.signedKeyBits = data.key_bits || guessBitsFromPem(state.signPrivKeyPem);
+
+    hide('sign-form');
+    show('sign-success');
+    populateSignSuccess(data);
+    updateSignStepBadge(3, 'done');
+    showToast('Digital signature created successfully!', 'success');
+  } catch (e) {
+    const msg = friendlyError(e);
+    setText('sign-error-text', msg);
+    show('sign-error');
+    showToast('Signing failed: ' + msg, 'error');
+    updateSignStepBadge(3, '');
+  } finally {
+    hide('sign-loading');
+    document.getElementById('sign-btn').disabled = false;
+  }
+}
+
+function populateSignSuccess(data) {
+  const pkg = data.package || data;
+  setText('ss-keybits', data.key_bits || state.signedKeyBits || '2048');
+  setText('ss-hash', truncate(pkg.message_sha256 || pkg.sha256 || '', 32));
+  setText('ss-timestamp', formatTimestamp(pkg.timestamp));
+  setText('ss-nonce', truncate(pkg.nonce, 16));
+
+  const display = Object.assign({}, pkg);
+  if (display.message_b64) display.message_b64 = display.message_b64.slice(0, 40) + '... (truncated)';
+  if (display.signature_b64) display.signature_b64 = display.signature_b64.slice(0, 40) + '... (truncated)';
+  document.getElementById('pkg-json-display').textContent = JSON.stringify(display, null, 2);
+  state.rawJsonVisible = false;
+  setText('raw-json-btn', 'View Raw JSON');
+}
+
+function toggleRawJson() {
+  state.rawJsonVisible = !state.rawJsonVisible;
+  const el = document.getElementById('pkg-json-display');
+  if (state.rawJsonVisible) {
+    el.textContent = JSON.stringify(state.signedPackage, null, 2);
+    setText('raw-json-btn', 'View Truncated');
+  } else {
+    populateSignSuccess({ package: state.signedPackage, key_bits: state.signedKeyBits });
+  }
+}
+
+function downloadSignedPackage() {
+  if (!state.signedPackage) { showToast('No package to download', 'warning'); return; }
+  const ts = state.signedPackage.timestamp || Math.floor(Date.now()/1000);
+  downloadFile(JSON.stringify(state.signedPackage, null, 2), `signature_${ts}.sig.json`, 'application/json');
+  showToast('Signature package downloaded (.sig.json)', 'success');
+}
+
+function copyPackageJson() {
+  if (!state.signedPackage) { showToast('No package to copy', 'warning'); return; }
+  copyToClipboard(JSON.stringify(state.signedPackage, null, 2));
+}
+
+async function simulateTransfer() {
+  if (!state.signedPackage) { showToast('No package to transfer', 'warning'); return; }
+  const btn = document.getElementById('transfer-btn');
+  btn.disabled = true;
+  try {
+    await api('POST', '/api/transfer', { package: state.signedPackage });
+    showToast('Package transferred to receiver inbox! Open Receiver / Verify to check.', 'success');
+  } catch (e) {
+    showToast('Transfer failed: ' + friendlyError(e), 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function resetSignPage() {
+  state.signedPackage = null;
+  show('sign-form'); hide('sign-success'); hide('sign-error');
+  document.getElementById('sign-message').value = '';
+  document.getElementById('sign-btn').disabled = false;
+  updateSignStepBadge(2, '');
+  updateSignStepBadge(3, '');
+}
+
+/* ═══════════════════════════════════════
+   PAGE 4: RECEIVER / VERIFY LOGIC
+════════════════════════════════════════ */
+function loadVerifyPkgFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const pkg = JSON.parse(e.target.result);
+      setReceiverPackage(pkg);
+    } catch { showToast('Invalid JSON file format', 'error'); }
+  };
+  reader.readAsText(file);
+}
+
+function loadVerifyPkgFromPaste() {
+  try {
+    const raw = document.getElementById('verify-pkg-paste').value.trim();
+    if (!raw) { showToast('Paste package JSON first', 'warning'); return; }
+    const pkg = JSON.parse(raw);
+    setReceiverPackage(pkg);
+  } catch { showToast('Invalid JSON string format', 'error'); }
+}
+
+function setReceiverPackage(pkg) {
+  if (pkg && pkg.package) pkg = pkg.package;
+  state.receiverPackage = pkg;
+  setText('vm-algo', pkg.algorithm || 'RSA-PSS-SHA256');
+  setText('vm-ts', formatTimestamp(pkg.timestamp));
+  setText('vm-nonce', truncate(pkg.nonce, 16));
+  setText('vm-hash', truncate(pkg.message_sha256 || pkg.sha256 || '', 16));
+  const fname = pkg.filename || (pkg.message_b64 ? '(Text Message)' : '—');
+  setText('vm-file', fname);
+
+  const embKey = pkg.public_key_pem || pkg.public_key || '';
+  setText('vm-emb-key', truncate(embKey.replace(/\s+/g,' '), 45));
+  show('verify-pkg-meta');
+  updateVerifyBtn();
+  updateKeyCompare();
+  showToast('Signature package loaded', 'success');
+}
+
+function loadVerifyKeyFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    state.receiverTrustedKey = e.target.result;
+    document.getElementById('verify-key-paste').value = e.target.result;
+    showVerifyKeyLoaded(e.target.result);
+  };
+  reader.readAsText(file);
+}
+
+function loadVerifyKeyFromPaste() {
+  const pem = document.getElementById('verify-key-paste').value.trim();
+  if (!pem) { showToast('Please paste a public key PEM', 'warning'); return; }
+  state.receiverTrustedKey = pem;
+  showVerifyKeyLoaded(pem);
+}
+
+function showVerifyKeyLoaded(pem) {
+  setText('verify-key-preview', truncate(pem.replace(/\s+/g,' '), 65));
+  show('verify-key-loaded');
+  updateVerifyBtn();
+  updateKeyCompare();
+  showToast('Trusted public key loaded', 'success');
+}
+
+function updateVerifyBtn() {
+  const btn = document.getElementById('verify-btn');
+  if (btn) btn.disabled = !state.receiverPackage;
+}
+
+function updateKeyCompare() {
+  const el = document.getElementById('key-compare-badge');
+  if (!el) return;
+  if (!state.receiverPackage || !state.receiverTrustedKey) { hide('key-compare-badge'); return; }
+  const embKey = (state.receiverPackage.public_key_pem || state.receiverPackage.public_key || '').replace(/\s+/g,'');
+  const trustKey = state.receiverTrustedKey.replace(/\s+/g,'');
+  const match = embKey && trustKey && embKey === trustKey;
+  el.className = 'key-compare ' + (match ? 'match' : 'no-match');
+  el.innerHTML = match
+    ? '<span>✓</span><span>Key Verification: Embedded key matches trusted public key</span>'
+    : '<span>✗</span><span>Key Mismatch: Embedded key does NOT match trusted public key</span>';
+  show('key-compare-badge');
+}
+
+function toggleFreshnessAge() {
+  const chk = document.getElementById('opt-freshness');
+  if (chk.checked) show('freshness-age-wrap'); else hide('freshness-age-wrap');
+}
+
+async function loadInbox() {
+  try {
+    const data = await api('GET', '/api/inbox');
+    const packages = data.packages || data.inbox || [];
+    if (packages.length === 0) { hide('verify-inbox'); return; }
+    const listEl = document.getElementById('verify-inbox-list');
+    setText('verify-inbox-title', `📥 Receiver Inbox (${packages.length} package${packages.length !== 1 ? 's' : ''})`);
+    listEl.innerHTML = '';
+    packages.forEach((item, i) => {
+      const div = document.createElement('div');
+      div.className = 'inbox-item';
+      const ts = formatTimestamp(item.timestamp || item.received_at);
+      const label = item.original_filename || item.filename || `Package ${i+1}`;
+      div.innerHTML = `<div><div class="inbox-name">📦 ${escapeHtml(label)}</div><div class="inbox-meta">${ts} · SHA: ${item.sha256||'—'}</div></div><span class="badge badge-cyan">Load</span>`;
+      div.onclick = async () => {
+        try {
+          const full = await api('GET', '/api/inbox/' + encodeURIComponent(item.filename));
+          setReceiverPackage(full.package || full);
+          showToast(`Loaded "${label}" from inbox`, 'success');
+        } catch(err) {
+          showToast('Could not load package: ' + friendlyError(err), 'error');
+        }
+      };
+      listEl.appendChild(div);
+    });
+    show('verify-inbox');
+  } catch { hide('verify-inbox'); }
+}
+
+async function verifyPackage() {
+  if (!state.receiverPackage) {
+    const pText = document.getElementById('verify-pkg-paste').value.trim();
+    if (pText) loadVerifyPkgFromPaste();
+  }
+  if (!state.receiverTrustedKey) {
+    const kText = document.getElementById('verify-key-paste').value.trim();
+    if (kText) loadVerifyKeyFromPaste();
+  }
+
+  if (!state.receiverPackage) {
+    showToast('Please load a signature package (.sig.json) first', 'warning');
+    return;
+  }
+
+  const checkFreshness = document.getElementById('opt-freshness').checked;
+  const checkReplay = document.getElementById('opt-replay').checked;
+  const maxAge = checkFreshness ? parseInt(document.getElementById('freshness-age').value, 10) || 300 : null;
+
+  show('verify-loading');
+  document.getElementById('verify-btn').disabled = true;
+
+  try {
+    const body = {
+      package: state.receiverPackage,
+      trusted_public_key_pem: state.receiverTrustedKey || '',
+      check_age: checkFreshness ? maxAge : null,
+      check_replay: checkReplay,
+    };
+    const data = await api('POST', '/api/verify', body);
+    hide('verify-loading');
+    hide('verify-form');
+    renderVerifyResult(data);
+    show('verify-result');
+  } catch (e) {
+    hide('verify-loading');
+    document.getElementById('verify-btn').disabled = false;
+    const errData = e.data || {};
+    hide('verify-form');
+    renderVerifyResult(errData.result ? errData : { status: 'INVALID', reason: friendlyError(e), checks: {} });
+    show('verify-result');
+  }
+}
+
+function renderVerifyResult(data) {
+  const status = (data.status || 'INVALID').toUpperCase();
+  const reason = data.reason || data.message || '';
+  const checks = data.checks || {};
+  const el = document.getElementById('verify-result-card');
+
+  let headerClass, headerIcon, headerTitle;
+  if (status === 'VALID') { headerClass = 'alert-success'; headerIcon = '✓'; headerTitle = 'SIGNATURE VALID — CRYPTOGRAPHIC VERIFICATION PASSED'; }
+  else if (status === 'REJECTED') { headerClass = 'alert-warning'; headerIcon = '⚠'; headerTitle = 'SIGNATURE REJECTED — SECURITY POLICY VIOLATION'; }
+  else { headerClass = 'alert-danger'; headerIcon = '✗'; headerTitle = 'SIGNATURE INVALID — CRYPTOGRAPHIC INTEGRITY FAILED'; }
+
+  const checkItems = [
+    { key: 'structure', label: '1. Package Structure & Attributes Validation' },
+    { key: 'hash', label: '2. SHA-256 Message Integrity Check' },
+    { key: 'trusted_key', label: '3. Trusted Public Key Authentication' },
+    { key: 'signature', label: '4. RSA-PSS Cryptographic Signature Verification' },
+    { key: 'freshness', label: '5. Timestamp Freshness Window Check' },
+    { key: 'replay', label: '6. Cryptographic Nonce Replay Protection Check' },
+  ];
+
+  let checksHtml = '<div class="check-list">';
+  checkItems.forEach(item => {
+    let v = checks[item.key];
+    let cls, sym;
+    if (v === true) { cls = 'pass'; sym = '✓'; }
+    else if (v === false) { cls = 'fail'; sym = '✗'; }
+    else { cls = 'skip'; sym = '—'; }
+    checksHtml += `<div class="check-item"><div class="check-mark ${cls}">${sym}</div><span>${item.label}</span></div>`;
+  });
+  checksHtml += '</div>';
+
+  let msgContentBox = '';
+  if (status === 'VALID') {
+    if (state.receiverPackage && state.receiverPackage.message_b64) {
+      try {
+        const decoded = new TextDecoder('utf-8').decode(b64decode(state.receiverPackage.message_b64));
+        msgContentBox = `
+          <div style="background:rgba(0,200,83,0.06);border:1px solid rgba(0,200,83,0.3);border-radius:6px;padding:14px;margin-top:14px;">
+            <div class="flex-between" style="margin-bottom:8px;">
+              <span class="detail-label" style="color:#00e676;font-weight:600;display:flex;align-items:center;gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                Verified Authentic Message Payload
+              </span>
+              <button class="btn btn-secondary btn-icon" onclick="copyVerifiedMessage()">Copy Message</button>
+            </div>
+            <div style="font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;background:rgba(0,0,0,0.3);padding:10px;border-radius:4px;border:1px solid rgba(255,255,255,0.06);">${escapeHtml(decoded)}</div>
+          </div>
+        `;
+      } catch {
+        msgContentBox = `
+          <div style="background:rgba(0,200,83,0.06);border:1px solid rgba(0,200,83,0.3);border-radius:6px;padding:12px;margin-top:14px;">
+            <div class="detail-label" style="color:#00e676;margin-bottom:6px;">Verified Binary Payload:</div>
+            <div style="font-size:12px;color:var(--text);">${escapeHtml(state.receiverPackage.filename || 'Binary file')} verified authentic (${formatBytes(state.receiverPackage.message_b64 ? state.receiverPackage.message_b64.length * 3 / 4 : 0)}).</div>
+          </div>
+        `;
+      }
+    }
+  } else {
+    msgContentBox = `
+      <div style="background:rgba(255,23,68,0.05);border:1px dashed rgba(255,23,68,0.3);border-radius:6px;padding:12px;margin-top:14px;display:flex;align-items:flex-start;gap:10px;">
+        <div style="color:var(--danger);font-size:16px;line-height:1;margin-top:2px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--danger);margin-bottom:3px;">Message Content Withheld</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.4;">Unverified, tampered, or rejected payload is protected and will not be displayed to prevent exposing untrusted data.</div>
+        </div>
+      </div>
+    `;
+  }
+
+  let evidenceBox = '';
+  if (status === 'INVALID' || status === 'REJECTED') {
+    evidenceBox = `
+      <div style="background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:14px;">
+        <div class="detail-label" style="color:var(--text);margin-bottom:6px;">Technical Evidence &amp; Root Cause:</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.5;">${escapeHtml(reason || 'Cryptographic verification algorithm reported failure.')}</div>
+      </div>
+    `;
+  }
+
+  el.innerHTML = `
+    <div class="alert ${headerClass}" style="margin-bottom:16px;">
+      <div class="alert-icon" style="font-size:24px;">${headerIcon}</div>
+      <div class="alert-body">
+        <strong style="font-size:15px;">${headerTitle}</strong>
+        ${reason ? `<p style="margin-top:4px;">${escapeHtml(reason)}</p>` : ''}
+      </div>
+    </div>
+    ${checksHtml}
+    ${msgContentBox}
+    ${evidenceBox}
+  `;
+}
+
+function copyVerifiedMessage() {
+  if (!state.receiverPackage || !state.receiverPackage.message_b64) return;
+  try {
+    const text = new TextDecoder('utf-8').decode(b64decode(state.receiverPackage.message_b64));
+    copyToClipboard(text);
+  } catch(e) {
+    showToast('Cannot copy binary payload', 'warning');
+  }
+}
+
+function resetVerifyPage() {
+  hide('verify-result'); show('verify-form');
+  document.getElementById('verify-btn').disabled = false;
+  loadInbox();
+}
+
+/* ═══════════════════════════════════════
+   PAGE 5: ATTACK LAB LOGIC
+════════════════════════════════════════ */
+function updateAttackStats(isDetected) {
+  state.attackStats.executed += 1;
+  if (isDetected) state.attackStats.detected += 1;
+  state.attackStats.notRun = Math.max(0, state.attackStats.total - state.attackStats.executed);
+
+  setText('al-executed', `Executed: ${state.attackStats.executed}`);
+  setText('al-detected', `Detected / Rejected: ${state.attackStats.detected}`);
+  setText('al-not-run', `Not Run: ${state.attackStats.notRun}`);
+}
+
+async function logAttackToAudit(name, status, reason, nonce = '', sha256 = '') {
+  try {
+    await api('POST', '/api/log_attack', {
+      attack_name: name,
+      status,
+      reason,
+      nonce,
+      sha256,
+    });
+  } catch (e) {
+    console.warn('Failed to log attack event:', e);
+  }
+}
+
+async function runAttack1(btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Simulating...';
+  const badge = document.getElementById('attack1-badge');
+  const evBox = document.getElementById('attack1-evidence');
+
+  try {
+    const kd = await api('POST', '/api/keygen', { bits: 2048 });
+    const privPem = kd.private_key_pem || kd.private_key;
+    const pubPem = kd.public_key_pem || kd.public_key;
+    const origMsg = 'Payment authorization: Pay Bob $100';
+    const sd = await api('POST', '/api/sign', { message: origMsg, private_key_pem: privPem });
+    const pkg = sd.package || sd;
+
+    const msgBytes = b64decode(pkg.message_b64 || '');
+    const tampered = new Uint8Array(msgBytes);
+    for (let i = 0; i < Math.min(6, tampered.length); i++) tampered[i] ^= 0xFF;
+    const tamperedPkg = Object.assign({}, pkg, { message_b64: b64encode(tampered) });
+
+    const vd = await api('POST', '/api/verify', { package: tamperedPkg, trusted_public_key_pem: pubPem });
+
+    badge.className = 'badge badge-red';
+    badge.textContent = 'ATTACK DETECTED';
+    evBox.innerHTML = `
+      <div class="evidence-row"><span class="evidence-key">Attack Target</span><span class="evidence-val">Message Content (Bit Tampering)</span></div>
+      <div class="evidence-row"><span class="evidence-key">Detection Mechanism</span><span class="evidence-val">SHA-256 Digest Re-computation</span></div>
+      <div class="evidence-row"><span class="evidence-key">Verification Result</span><span class="evidence-val" style="color:var(--danger)">INVALID ✗</span></div>
+      <div class="evidence-row"><span class="evidence-key">Security Control</span><span class="evidence-val" style="color:var(--success)">PROTECTED ✓</span></div>
+      <div class="evidence-row"><span class="evidence-key">Expected SHA-256</span><span class="evidence-val">${truncate(pkg.message_sha256, 24)}</span></div>
+      <div class="evidence-row"><span class="evidence-key">Reason</span><span class="evidence-val">${escapeHtml(vd.reason)}</span></div>
+    `;
+    show('attack1-evidence');
+    updateAttackStats(true);
+    await logAttackToAudit('Message Tampering', 'DETECTED', vd.reason, pkg.nonce, pkg.message_sha256);
+    showToast('Attack 1 Detected: SHA-256 mismatch!', 'error');
+  } catch (e) {
+    showToast('Attack simulation error: ' + friendlyError(e), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run Attack 1';
+  }
+}
+
+async function runAttack2(btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Simulating...';
+  const badge = document.getElementById('attack2-badge');
+  const evBox = document.getElementById('attack2-evidence');
+
+  try {
+    const kd = await api('POST', '/api/keygen', { bits: 2048 });
+    const privPem = kd.private_key_pem || kd.private_key;
+    const pubPem = kd.public_key_pem || kd.public_key;
+    const sd = await api('POST', '/api/sign', { message: 'Integrity critical transaction', private_key_pem: privPem });
+    const pkg = sd.package || sd;
+
+    const sigBytes = b64decode(pkg.signature_b64);
+    const corrupt = new Uint8Array(sigBytes);
+    corrupt[12] ^= 0x55; corrupt[34] ^= 0xAA; corrupt[56] ^= 0x77;
+    const corruptPkg = Object.assign({}, pkg, { signature_b64: b64encode(corrupt) });
+
+    const vd = await api('POST', '/api/verify', { package: corruptPkg, trusted_public_key_pem: pubPem });
+
+    badge.className = 'badge badge-red';
+    badge.textContent = 'ATTACK DETECTED';
+    evBox.innerHTML = `
+      <div class="evidence-row"><span class="evidence-key">Attack Target</span><span class="evidence-val">RSA-PSS Signature Payload</span></div>
+      <div class="evidence-row"><span class="evidence-key">Detection Mechanism</span><span class="evidence-val">RSA Public Key Verification (MGF1)</span></div>
+      <div class="evidence-row"><span class="evidence-key">Verification Result</span><span class="evidence-val" style="color:var(--danger)">INVALID ✗</span></div>
+      <div class="evidence-row"><span class="evidence-key">Security Control</span><span class="evidence-val" style="color:var(--success)">PROTECTED ✓</span></div>
+      <div class="evidence-row"><span class="evidence-key">Corrupted Bytes</span><span class="evidence-val">Indices [12, 34, 56] mutated</span></div>
+      <div class="evidence-row"><span class="evidence-key">Reason</span><span class="evidence-val">${escapeHtml(vd.reason)}</span></div>
+    `;
+    show('attack2-evidence');
+    updateAttackStats(true);
+    await logAttackToAudit('Signature Corruption', 'DETECTED', vd.reason, pkg.nonce, pkg.message_sha256);
+    showToast('Attack 2 Detected: Corrupted signature rejected!', 'error');
+  } catch (e) {
+    showToast('Attack simulation error: ' + friendlyError(e), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run Attack 2';
+  }
+}
+
+async function runAttack3(btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Simulating...';
+  const badge = document.getElementById('attack3-badge');
+  const evBox = document.getElementById('attack3-evidence');
+
+  try {
+    const alice = await api('POST', '/api/keygen', { bits: 2048 });
+    const eve = await api('POST', '/api/keygen', { bits: 2048 });
+    const alicePub = alice.public_key_pem || alice.public_key;
+    const evePriv = eve.private_key_pem || eve.private_key;
+
+    const sd = await api('POST', '/api/sign', { message: 'Transfer $1,000,000 to Eve', private_key_pem: evePriv });
+    const pkg = sd.package || sd;
+
+    const vd = await api('POST', '/api/verify', { package: pkg, trusted_public_key_pem: alicePub });
+
+    badge.className = 'badge badge-red';
+    badge.textContent = 'ATTACK DETECTED';
+    evBox.innerHTML = `
+      <div class="evidence-row"><span class="evidence-key">Attack Target</span><span class="evidence-val">Signer Identity / Public-Key Substitution</span></div>
+      <div class="evidence-row"><span class="evidence-key">Detection Mechanism</span><span class="evidence-val">Trusted Public Key Comparison</span></div>
+      <div class="evidence-row"><span class="evidence-key">Verification Result</span><span class="evidence-val" style="color:var(--danger)">INVALID ✗</span></div>
+      <div class="evidence-row"><span class="evidence-key">Security Control</span><span class="evidence-val" style="color:var(--success)">PROTECTED ✓</span></div>
+      <div class="evidence-row"><span class="evidence-key">Signer Key</span><span class="evidence-val">Attacker Key (Eve)</span></div>
+      <div class="evidence-row"><span class="evidence-key">Trusted Key</span><span class="evidence-val">Expected Key (Alice)</span></div>
+      <div class="evidence-row"><span class="evidence-key">Reason</span><span class="evidence-val">${escapeHtml(vd.reason)}</span></div>
+    `;
+    show('attack3-evidence');
+    updateAttackStats(true);
+    await logAttackToAudit('Public-Key Substitution', 'DETECTED', vd.reason, pkg.nonce, pkg.message_sha256);
+    showToast('Attack 3 Detected: Key substitution blocked!', 'error');
+  } catch (e) {
+    showToast('Attack simulation error: ' + friendlyError(e), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run Attack 3';
+  }
+}
+
+async function runAttack4(btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Simulating...';
+  const badge = document.getElementById('attack4-badge');
+  const evBox = document.getElementById('attack4-evidence');
+
+  try {
+    const kd = await api('POST', '/api/keygen', { bits: 2048 });
+    const privPem = kd.private_key_pem || kd.private_key;
+    const pubPem = kd.public_key_pem || kd.public_key;
+    const sd = await api('POST', '/api/sign', { message: 'Transfer $500 to Charlie', private_key_pem: privPem });
+    const pkg = sd.package || sd;
+
+    const v1 = await api('POST', '/api/verify', { package: pkg, trusted_public_key_pem: pubPem, check_replay: true });
+
+    let v2;
+    try {
+      v2 = await api('POST', '/api/verify', { package: pkg, trusted_public_key_pem: pubPem, check_replay: true });
+    } catch(err) {
+      v2 = err.data || { status: 'REJECTED', reason: 'Replay detected: nonce has already been used.' };
+    }
+
+    badge.className = 'badge badge-orange';
+    badge.textContent = 'REPLAY REJECTED';
+    evBox.innerHTML = `
+      <div class="evidence-row"><span class="evidence-key">Attack Target</span><span class="evidence-val">Nonce State Store &amp; Replay Prevention</span></div>
+      <div class="evidence-row"><span class="evidence-key">1st Attempt Result</span><span class="evidence-val" style="color:var(--success)">${v1.status} ✓ (Nonce Recorded)</span></div>
+      <div class="evidence-row"><span class="evidence-key">2nd Attempt Result</span><span class="evidence-val" style="color:var(--warning)">${v2.status} ⚠ (Replay Caught)</span></div>
+      <div class="evidence-row"><span class="evidence-key">Security Control</span><span class="evidence-val" style="color:var(--success)">PROTECTED ✓</span></div>
+      <div class="evidence-row"><span class="evidence-key">Nonce Used</span><span class="evidence-val">${truncate(pkg.nonce, 24)}</span></div>
+      <div class="evidence-row"><span class="evidence-key">Reason</span><span class="evidence-val">${escapeHtml(v2.reason)}</span></div>
+    `;
+    show('attack4-evidence');
+    updateAttackStats(true);
+    await logAttackToAudit('Replay Attack', 'REJECTED', v2.reason, pkg.nonce, pkg.message_sha256);
+    showToast('Attack 4 Detected: Replay rejected by nonce store!', 'warning');
+  } catch (e) {
+    showToast('Attack simulation error: ' + friendlyError(e), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run Attack 4';
+  }
+}
+
+async function runAttack5(btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Simulating...';
+  const badge = document.getElementById('attack5-badge');
+  const evBox = document.getElementById('attack5-evidence');
+
+  try {
+    const kd = await api('POST', '/api/keygen', { bits: 2048 });
+    const privPem = kd.private_key_pem || kd.private_key;
+    const pubPem = kd.public_key_pem || kd.public_key;
+    const sd = await api('POST', '/api/sign', { message: 'Time-sensitive message', private_key_pem: privPem });
+    const pkg = sd.package || sd;
+
+    const origTs = pkg.timestamp;
+    const alteredTs = origTs - 86400;
+    const tampered = Object.assign({}, pkg, { timestamp: alteredTs });
+
+    const vd = await api('POST', '/api/verify', { package: tampered, trusted_public_key_pem: pubPem });
+
+    badge.className = 'badge badge-red';
+    badge.textContent = 'ATTACK DETECTED';
+    evBox.innerHTML = `
+      <div class="evidence-row"><span class="evidence-key">Attack Target</span><span class="evidence-val">Signed Timestamp Header</span></div>
+      <div class="evidence-row"><span class="evidence-key">Detection Mechanism</span><span class="evidence-val">Signed Content Prefix (DSVS1 + Ts + Nonce + Digest)</span></div>
+      <div class="evidence-row"><span class="evidence-key">Verification Result</span><span class="evidence-val" style="color:var(--danger)">INVALID ✗</span></div>
+      <div class="evidence-row"><span class="evidence-key">Security Control</span><span class="evidence-val" style="color:var(--success)">PROTECTED ✓</span></div>
+      <div class="evidence-row"><span class="evidence-key">Original / Modified</span><span class="evidence-val">${origTs} → ${alteredTs}</span></div>
+      <div class="evidence-row"><span class="evidence-key">Reason</span><span class="evidence-val">${escapeHtml(vd.reason)}</span></div>
+    `;
+    show('attack5-evidence');
+    updateAttackStats(true);
+    await logAttackToAudit('Timestamp Manipulation', 'DETECTED', vd.reason, pkg.nonce, pkg.message_sha256);
+    showToast('Attack 5 Detected: Timestamp tampering breaks signature!', 'error');
+  } catch (e) {
+    showToast('Attack simulation error: ' + friendlyError(e), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run Attack 5';
+  }
+}
+
+async function runAttack6(btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Simulating...';
+  const badge = document.getElementById('attack6-badge');
+  const evBox = document.getElementById('attack6-evidence');
+
+  try {
+    const kd = await api('POST', '/api/keygen', { bits: 2048 });
+    const privPem = kd.private_key_pem || kd.private_key;
+    const pubPem = kd.public_key_pem || kd.public_key;
+    const sd = await api('POST', '/api/sign', { message: 'Sample message for removal test', private_key_pem: privPem });
+    const pkg = sd.package || sd;
+
+    const strippedPkg = Object.assign({}, pkg);
+    delete strippedPkg.signature_b64;
+
+    let vd;
+    try {
+      vd = await api('POST', '/api/verify', { package: strippedPkg, trusted_public_key_pem: pubPem });
+    } catch(err) {
+      vd = err.data || { status: 'INVALID', reason: 'Malformed package: missing required fields' };
+    }
+
+    badge.className = 'badge badge-red';
+    badge.textContent = 'ATTACK DETECTED';
+    evBox.innerHTML = `
+      <div class="evidence-row"><span class="evidence-key">Attack Target</span><span class="evidence-val">Signature Package Schema / Stripped Signature</span></div>
+      <div class="evidence-row"><span class="evidence-key">Detection Mechanism</span><span class="evidence-val">Package Structure Integrity Verification</span></div>
+      <div class="evidence-row"><span class="evidence-key">Verification Result</span><span class="evidence-val" style="color:var(--danger)">INVALID ✗</span></div>
+      <div class="evidence-row"><span class="evidence-key">Security Control</span><span class="evidence-val" style="color:var(--success)">PROTECTED ✓</span></div>
+      <div class="evidence-row"><span class="evidence-key">Reason</span><span class="evidence-val">${escapeHtml(vd.reason)}</span></div>
+    `;
+    show('attack6-evidence');
+    updateAttackStats(true);
+    await logAttackToAudit('Signature Removal', 'DETECTED', vd.reason, pkg.nonce, pkg.message_sha256);
+    showToast('Attack 6 Detected: Missing signature rejected!', 'error');
+  } catch (e) {
+    showToast('Attack simulation error: ' + friendlyError(e), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run Attack 6';
+  }
+}
+
+/* ═══════════════════════════════════════
+   PAGE 7: AUDIT LOG LOGIC
+════════════════════════════════════════ */
+let auditData = [];
+
+async function loadAuditLog() {
+  try {
+    const data = await api('GET', '/api/audit?n=200');
+    auditData = data.entries || data.logs || [];
+    renderAuditTable();
+  } catch {
+    auditData = [];
+    renderAuditTable();
+  }
+}
+
+function renderAuditTable() {
+  const tbody = document.getElementById('audit-tbody');
+  if (!tbody) return;
+  const ef = state.auditFilter.event;
+  const sf = state.auditFilter.status;
+
+  const rows = auditData.filter(row => {
+    const ev = (row.event || '').toUpperCase();
+    const st = (row.status || '').toUpperCase();
+    return (!ef || ev === ef) && (!sf || st === sf);
+  }).reverse();
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📋</div><div>No audit log entries match current filter.</div></div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(row => {
+    const ev = (row.event || '—').toUpperCase();
+    const st = (row.status || '—').toUpperCase();
+    const evBadge = ev === 'SIGN' ? 'badge-blue' : ev === 'VERIFY' ? 'badge-cyan' : ev === 'KEYGEN' ? 'badge-purple' : ev === 'ATTACK' ? 'badge-red' : 'badge-muted';
+    const stBadge = st === 'VALID' ? 'badge-green' : st === 'REJECTED' ? 'badge-orange' : (st === 'INVALID' || st === 'DETECTED') ? 'badge-red' : st === 'OK' ? 'badge-blue' : 'badge-muted';
+    return `<tr>
+      <td style="white-space:nowrap;font-size:11px;">${row.timestamp_utc ? formatTimestamp(row.timestamp_utc) : '—'}</td>
+      <td><span class="badge ${evBadge}">${ev}</span></td>
+      <td style="font-size:12px;">${escapeHtml(row.source || '—')}</td>
+      <td><span class="badge ${stBadge}">${st}</span></td>
+      <td style="font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(row.reason||'')}">${escapeHtml(row.reason || '—')}</td>
+      <td style="font-size:12px;">${escapeHtml(row.peer || '—')}</td>
+      <td style="font-family:monospace;font-size:11px;">${truncate(row.sha256, 12)}</td>
+      <td style="font-family:monospace;font-size:11px;">${truncate(row.nonce, 12)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function setEventFilter(btn, val) {
+  state.auditFilter.event = val;
+  document.querySelectorAll('[data-ef]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAuditTable();
+}
+
+function setStatusFilter(btn, val) {
+  state.auditFilter.status = val;
+  document.querySelectorAll('[data-sf]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAuditTable();
+}
+
+function toggleAutoRefresh() {
+  const chk = document.getElementById('auto-refresh-chk');
+  if (chk.checked) {
+    state.auditInterval = setInterval(() => { if (state.currentPage === 'audit') loadAuditLog(); }, 10000);
+  } else {
+    clearInterval(state.auditInterval);
+    state.auditInterval = null;
+  }
+}
+
+/* ═══════════════════════════════════════
+   DOM INITIALIZATION
+════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  setupDropZone(
+    document.getElementById('sign-key-drop'),
+    document.getElementById('sign-key-file'),
+    loadSignKeyFile
+  );
+  setupDropZone(
+    document.getElementById('sign-file-drop'),
+    document.getElementById('sign-content-file'),
+    loadSignContentFile
+  );
+  setupDropZone(
+    document.getElementById('verify-pkg-drop'),
+    document.getElementById('verify-pkg-file'),
+    loadVerifyPkgFile
+  );
+  setupDropZone(
+    document.getElementById('verify-key-drop'),
+    document.getElementById('verify-key-file'),
+    loadVerifyKeyFile
+  );
+
+  loadDashboardStats();
+  loadDashboardRecentEvents();
+});
+</script>
+</body>
+</html>

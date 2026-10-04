@@ -1,0 +1,8 @@
+This is a sample message for the Digital Signature Verification System.
+
+Message: Transfer $500 from Account A to Account B.
+Date: 2026-10-01
+Authorization: Alice
+
+This message has been digitally signed with RSA-PSS and SHA-256.
+Any modification to this file will cause signature verification to fail.
